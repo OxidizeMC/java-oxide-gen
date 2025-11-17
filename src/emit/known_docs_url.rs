@@ -28,6 +28,7 @@ impl KnownDocsUrl {
                 'A'..='Z' => {}
                 '0'..='9' => {}
                 '_' | '$' | '/' => {}
+                // Contains invalid charater
                 _ch => return None,
             }
         }
@@ -71,6 +72,7 @@ impl KnownDocsUrl {
                 'A'..='Z' => {}
                 '0'..='9' => {}
                 '_' | '$' | '/' => {}
+                // Contains invalid charater
                 _ch => return None,
             }
         }
@@ -111,6 +113,7 @@ impl KnownDocsUrl {
                     'A'..='Z' => {}
                     '0'..='9' => {}
                     '_' => {}
+                    // Contains invalid charater
                     _ch => return None,
                 }
             }
@@ -194,6 +197,7 @@ impl KnownDocsUrl {
                 'A'..='Z' => {}
                 '0'..='9' => {}
                 '_' | '$' | '/' => {}
+                // Contains invalid charater
                 _ch => return None,
             }
         }
@@ -204,6 +208,7 @@ impl KnownDocsUrl {
                 'A'..='Z' => {}
                 '0'..='9' => {}
                 '_' => {}
+                // Contains invalid charater
                 _ch => return None,
             }
         }

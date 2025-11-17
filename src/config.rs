@@ -1,18 +1,17 @@
-//! java-oxide.yaml configuration file structures and parsing APIs.
+//! java-oxide.toml configuration file structures and parsing APIs.
 
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use std::{
     fs::File,
     io,
-    iter::Peekable,
     path::{Path, PathBuf},
-    str::Chars,
+    // iter::Peekable,
+    // str::Chars,
 };
 
 fn default_proxy_package() -> String {
     "java_oxide/proxy".to_string()
 }
-
 fn default_slash() -> String {
     String::from("/")
 }
@@ -196,19 +195,21 @@ pub struct Config {
 }
 
 impl Config {
-    /// Read from I/O, under the assumption that it's in the "java-oxide.yaml" file format.
-    /// `directory` is the directory that contained the `java-oxide.yaml` file, against which paths should be resolved.
+    /// Read from I/O, under the assumption that it's in the "java-oxide.toml" file format.
+    /// `directory` is the directory that contained the `java-oxide.toml` file, against which paths should be resolved.
     pub fn read(file: &mut impl io::Read, dir: &Path) -> io::Result<Self> {
         let mut buffer: String = String::new();
-        file.read_to_string(&mut buffer)?; // Apparently yaml can't stream.
+        file.read_to_string(&mut buffer)?;
         Self::read_str(&buffer[..], dir)
     }
 
-    /// Read from a memory buffer, under the assumption that it's in the "java-oxide.yaml" file format.
-    /// `directory` is the directory that contained the `java-oxide.yaml` file, against which paths should be resolved.
+    /// Read from a memory buffer, under the assumption that it's in the "java-oxide.toml" file format.
+    /// `directory` is the directory that contained the `java-oxide.toml` file, against which paths should be resolved.
     pub fn read_str(buffer: &str, dir: &Path) -> io::Result<Self> {
-        let mut config: Config = serde_yaml::from_str(buffer)
-            .map_err(|e: serde_yaml::Error| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        // let mut config: Config = serde_yaml::from_str(buffer)
+        //     .map_err(|e: serde_yaml::Error| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let mut config: Config = toml::from_str(buffer)
+            .map_err(|e: toml::de::Error| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         if config.rules.is_empty() {
             config.rules.push(Rule {
@@ -229,20 +230,20 @@ impl Config {
         Ok(config)
     }
 
-    /// Search the current directory - or failing that, it's ancestors - until we find "java-oxide.yaml" or reach the
+    /// Search the current directory - or failing that, it's ancestors - until we find "java-oxide.toml" or reach the
     /// root of the filesystem and cannot continue.
     #[allow(dead_code)]
     pub fn from_current_directory() -> io::Result<Self> {
         Self::from_directory(std::env::current_dir()?.as_path())
     }
 
-    /// Search the specified directory - or failing that, it's ancestors - until we find "java-oxide.yaml" or reach the
+    /// Search the specified directory - or failing that, it's ancestors - until we find "java-oxide.toml" or reach the
     /// root of the filesystem and cannot continue.
     pub fn from_directory(path: &Path) -> io::Result<Self> {
         let original: &Path = path;
         let mut path: PathBuf = path.to_owned();
         loop {
-            path.push("java-oxide.yaml");
+            path.push("java-oxide.toml");
             if path.exists() {
                 return Config::read(&mut File::open(&path)?, path.parent().unwrap());
             }
@@ -250,7 +251,7 @@ impl Config {
                 Err(io::Error::new(
                     io::ErrorKind::NotFound,
                     format!(
-                        "Failed to find java-oxide.yaml in \"{}\" or any of it's parent directories.",
+                        "Failed to find java-oxide.toml in \"{}\" or any of it's parent directories.",
                         original.display()
                     ),
                 ))?;
@@ -303,7 +304,7 @@ impl Config {
 }
 
 fn resolve_file(path: &Path, dir: &Path) -> PathBuf {
-    let path: String = expand_vars(&path.to_string_lossy());
+    // let path: String = expand_vars(&path.to_string_lossy());
     let path: PathBuf = path.into();
     if path.is_relative() {
         dir.join(path)
@@ -312,128 +313,128 @@ fn resolve_file(path: &Path, dir: &Path) -> PathBuf {
     }
 }
 
-fn expand_vars(string: &str) -> String {
-    let mut result: String = String::new();
-    let mut chars: Peekable<Chars<'_>> = string.chars().peekable();
+// fn expand_vars(string: &str) -> String {
+//     let mut result: String = String::new();
+//     let mut chars: Peekable<Chars<'_>> = string.chars().peekable();
 
-    while let Some(ch) = chars.next() {
-        if ch == '$' {
-            if let Some(&next_ch) = chars.peek() {
-                if next_ch == '{' {
-                    // ${VAR} format
-                    chars.next(); // consume '{'
-                    let mut var_name: String = String::new();
-                    let mut found_close: bool = false;
+//     while let Some(ch) = chars.next() {
+//         if ch == '$' {
+//             if let Some(&next_ch) = chars.peek() {
+//                 if next_ch == '{' {
+//                     // ${VAR} format
+//                     chars.next(); // consume '{'
+//                     let mut var_name: String = String::new();
+//                     let mut found_close: bool = false;
 
-                    for var_ch in chars.by_ref() {
-                        if var_ch == '}' {
-                            found_close = true;
-                            break;
-                        }
-                        var_name.push(var_ch);
-                    }
+//                     for var_ch in chars.by_ref() {
+//                         if var_ch == '}' {
+//                             found_close = true;
+//                             break;
+//                         }
+//                         var_name.push(var_ch);
+//                     }
 
-                    if found_close && !var_name.is_empty() {
-                        if let Ok(value) = std::env::var(&var_name) {
-                            result.push_str(&value);
-                        } else {
-                            // If variable not found, panic
-                            panic!("Environment variable '{var_name}' not found");
-                        }
-                    } else {
-                        // Malformed ${...}, keep as is
-                        result.push('$');
-                        result.push('{');
-                        result.push_str(&var_name);
-                        if found_close {
-                            result.push('}');
-                        }
-                    }
-                } else if next_ch.is_ascii_alphabetic() || next_ch == '_' {
-                    // $VAR format (alphanumeric and underscore)
-                    let mut var_name: String = String::new();
+//                     if found_close && !var_name.is_empty() {
+//                         if let Ok(value) = std::env::var(&var_name) {
+//                             result.push_str(&value);
+//                         } else {
+//                             // If variable not found, panic
+//                             panic!("Environment variable '{var_name}' not found");
+//                         }
+//                     } else {
+//                         // Malformed ${...}, keep as is
+//                         result.push('$');
+//                         result.push('{');
+//                         result.push_str(&var_name);
+//                         if found_close {
+//                             result.push('}');
+//                         }
+//                     }
+//                 } else if next_ch.is_ascii_alphabetic() || next_ch == '_' {
+//                     // $VAR format (alphanumeric and underscore)
+//                     let mut var_name: String = String::new();
 
-                    while let Some(&var_ch) = chars.peek() {
-                        if var_ch.is_ascii_alphanumeric() || var_ch == '_' {
-                            var_name.push(chars.next().unwrap());
-                        } else {
-                            break;
-                        }
-                    }
+//                     while let Some(&var_ch) = chars.peek() {
+//                         if var_ch.is_ascii_alphanumeric() || var_ch == '_' {
+//                             var_name.push(chars.next().unwrap());
+//                         } else {
+//                             break;
+//                         }
+//                     }
 
-                    if !var_name.is_empty() {
-                        if let Ok(value) = std::env::var(&var_name) {
-                            result.push_str(&value);
-                        } else {
-                            // If variable not found, panic
-                            panic!("Environment variable '{var_name}' not found");
-                        }
-                    } else {
-                        result.push('$');
-                    }
-                } else {
-                    // $ followed by something else, keep as is
-                    result.push('$');
-                }
-            } else {
-                // $ at end of string
-                result.push('$');
-            }
-        } else {
-            result.push(ch);
-        }
-    }
+//                     if !var_name.is_empty() {
+//                         if let Ok(value) = std::env::var(&var_name) {
+//                             result.push_str(&value);
+//                         } else {
+//                             // If variable not found, panic
+//                             panic!("Environment variable '{var_name}' not found");
+//                         }
+//                     } else {
+//                         result.push('$');
+//                     }
+//                 } else {
+//                     // $ followed by something else, keep as is
+//                     result.push('$');
+//                 }
+//             } else {
+//                 // $ at end of string
+//                 result.push('$');
+//             }
+//         } else {
+//             result.push(ch);
+//         }
+//     }
 
-    result
-}
+//     result
+// }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_expand_vars() {
-        // Test ${VAR} format
-        unsafe { std::env::set_var("TEST_VAR", "hello") };
-        assert_eq!(expand_vars("${TEST_VAR}"), "hello");
-        assert_eq!(
-            expand_vars("prefix_${TEST_VAR}_suffix"),
-            "prefix_hello_suffix"
-        );
+    // #[test]
+    // fn test_expand_vars() {
+    //     // Test ${VAR} format
+    //     unsafe { std::env::set_var("TEST_VAR", "hello") };
+    //     assert_eq!(expand_vars("${TEST_VAR}"), "hello");
+    //     assert_eq!(
+    //         expand_vars("prefix_${TEST_VAR}_suffix"),
+    //         "prefix_hello_suffix"
+    //     );
 
-        // Test $VAR format
-        assert_eq!(expand_vars("$TEST_VAR"), "hello");
-        // Note: In shell, $VAR_suffix would try to expand VAR_suffix, not VAR + _suffix
-        // This is correct behavior - use ${VAR}_suffix for the latter
-        assert_eq!(
-            expand_vars("prefix_${TEST_VAR}/suffix"),
-            "prefix_hello/suffix"
-        );
+    //     // Test $VAR format
+    //     assert_eq!(expand_vars("$TEST_VAR"), "hello");
+    //     // Note: In shell, $VAR_suffix would try to expand VAR_suffix, not VAR + _suffix
+    //     // This is correct behavior - use ${VAR}_suffix for the latter
+    //     assert_eq!(
+    //         expand_vars("prefix_${TEST_VAR}/suffix"),
+    //         "prefix_hello/suffix"
+    //     );
 
-        // Test literal $ characters
-        assert_eq!(expand_vars("$"), "$");
-        assert_eq!(expand_vars("$$"), "$$");
-        assert_eq!(expand_vars("$123"), "$123");
+    //     // Test literal $ characters
+    //     assert_eq!(expand_vars("$"), "$");
+    //     assert_eq!(expand_vars("$$"), "$$");
+    //     assert_eq!(expand_vars("$123"), "$123");
 
-        // Test malformed syntax
-        assert_eq!(expand_vars("${"), "${");
-        assert_eq!(expand_vars("${unclosed"), "${unclosed");
+    //     // Test malformed syntax
+    //     assert_eq!(expand_vars("${"), "${");
+    //     assert_eq!(expand_vars("${unclosed"), "${unclosed");
 
-        // Clean up
-        unsafe { std::env::remove_var("TEST_VAR") };
-    }
+    //     // Clean up
+    //     unsafe { std::env::remove_var("TEST_VAR") };
+    // }
 
-    #[test]
-    #[should_panic(expected = "Environment variable 'NONEXISTENT' not found")]
-    fn test_expand_vars_panic_on_missing_var_braces() {
-        expand_vars("${NONEXISTENT}");
-    }
+    // #[test]
+    // #[should_panic(expected = "Environment variable 'NONEXISTENT' not found")]
+    // fn test_expand_vars_panic_on_missing_var_braces() {
+    //     expand_vars("${NONEXISTENT}");
+    // }
 
-    #[test]
-    #[should_panic(expected = "Environment variable 'NONEXISTENT' not found")]
-    fn test_expand_vars_panic_on_missing_var_dollar() {
-        expand_vars("$NONEXISTENT");
-    }
+    // #[test]
+    // #[should_panic(expected = "Environment variable 'NONEXISTENT' not found")]
+    // fn test_expand_vars_panic_on_missing_var_dollar() {
+    //     expand_vars("$NONEXISTENT");
+    // }
 
     #[test]
     fn test_class_match_glob_patterns() {

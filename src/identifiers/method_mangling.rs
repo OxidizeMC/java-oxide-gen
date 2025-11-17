@@ -2,10 +2,8 @@ use super::rust_identifier::rust_ident;
 use crate::parser_util::{Id, IdPart};
 use anyhow::bail;
 use cafebabe::descriptors::{FieldType, MethodDescriptor};
-use serde_derive::Deserialize;
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MethodManglingStyle {
     /// Leave the original method name alone as much as possible.
     /// Constructors will still be renamed from "\<init>" to "new".

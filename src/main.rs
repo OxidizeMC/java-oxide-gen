@@ -4,6 +4,7 @@ mod emit;
 mod identifiers;
 mod parser_util;
 mod util;
+mod config_new;
 
 use crate::{config::Config, parser_util::JavaClass};
 use clap::{Parser, Subcommand};
@@ -127,6 +128,13 @@ pub fn main() {
 
     match cli.cmd {
         Cmd::Generate(cmd) => {
+            if let Some(config_path) = &cmd.config {
+                config_new::Config::from_file(&config_path).unwrap()
+            } else {
+                config_new::Config::from_current_directory().unwrap()
+            };
+            std::process::exit(0);
+
             let mut config: Config = if let Some(config_path) = cmd.config {
                 config::Config::from_file(&config_path).unwrap()
             } else {
