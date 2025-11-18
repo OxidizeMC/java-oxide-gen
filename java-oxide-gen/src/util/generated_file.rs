@@ -1,5 +1,5 @@
 use super::Difference;
-use crate::emit;
+use crate::{emit, io_data_err, io_data_error, pretty_path, prelude::*};
 use std::{
     fs::{self, *},
     io::{self, BufRead, BufReader, Cursor, ErrorKind},
@@ -17,7 +17,7 @@ pub fn write_generated(
     let path: &Path = path.as_ref();
     let dir: &Path = path
         .parent()
-        .ok_or_else(|| io_data_error!("{:?} has no parent directory", path))?;
+        .ok_or_else(|| io_data_error!("{:?} has no parent directory", pretty_path!(path)))?;
     let _ = create_dir_all(dir);
 
     // Determine comment prefix based on file extension
@@ -40,8 +40,8 @@ pub fn write_generated(
         Ok(file) => {
             let mut original: BufReader<File> = BufReader::new(file);
             let mut first_line: String = String::new();
-            read_line_no_eol(&mut original, &mut first_line).map_err(|e: io::Error| {
-                io_data_error!("failed to read line from file {:?}:\n{}", path, e)
+            read_line_no_eol(&mut original, &mut first_line).map_err(|e: io::Error| -> io::Error {
+                io_data_error!("Failed to read line from file {:?}:\n{}", pretty_path!(path), e)
             })?;
 
             let mut found_marker: bool = false;
@@ -56,38 +56,24 @@ pub fn write_generated(
             if !found_marker {
                 return io_data_err!(
                     "Cannot overwrite {:?}:  File exists, and first line {:?} doesn't match expected MARKER_COMMENT {:?}",
-                    path,
+                    pretty_path!(path),
                     first_line,
                     MARKER_COMMENT
                 );
             }
 
-            let difference: Option<Difference> =
-                Difference::find(&mut original, &mut Cursor::new(&full_contents))?;
-            match difference {
+            match Difference::find(&mut original, &mut Cursor::new(&full_contents))? {
                 None => {
-                    context
-                        .progress
-                        .lock()
-                        .unwrap()
-                        .update(format!("unchanged: {}...", path.display()).as_str());
+                    info!("Unchanged: {:?}...", pretty_path!(path));
                     return Ok(());
                 }
-                Some(_difference) => {
-                    context
-                        .progress
-                        .lock()
-                        .unwrap()
-                        .force_update(format!("MODIFIED: {}", path.display()).as_str());
+                Some(_) => {
+                    info!("MODIFIED: {:?}", pretty_path!(path))
                 }
             }
         }
         Err(ref e) if e.kind() == ErrorKind::NotFound => {
-            context
-                .progress
-                .lock()
-                .unwrap()
-                .force_update(format!("NEW: {}", path.display()).as_str());
+            info!("NEW: {:?}", pretty_path!(path))
         }
         Err(e) => {
             return io_data_err!("Failed to open file {:?}:\n{}", path, e);

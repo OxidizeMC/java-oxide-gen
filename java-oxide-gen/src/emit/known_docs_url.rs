@@ -6,9 +6,9 @@ use crate::{
 use cafebabe::descriptors::{FieldDescriptor, FieldType};
 use std::fmt::{self, Display, Formatter};
 
-pub(crate) struct KnownDocsUrl {
-    pub(crate) label: String,
-    pub(crate) url: String,
+pub struct KnownDocsUrl {
+    pub label: String,
+    pub url: String,
 }
 
 impl Display for KnownDocsUrl {
@@ -18,7 +18,7 @@ impl Display for KnownDocsUrl {
 }
 
 impl KnownDocsUrl {
-    pub(crate) fn from_class(config: &ClassConfig, java_class: Id) -> Option<KnownDocsUrl> {
+    pub fn from_class(config: &ClassConfig, java_class: Id) -> Option<KnownDocsUrl> {
         let java_class: &str = java_class.as_str();
         let pattern: &DocConfig = config.doc_pattern?;
 
@@ -54,7 +54,7 @@ impl KnownDocsUrl {
         })
     }
 
-    pub(crate) fn from_method(config: &ClassConfig, method: &Method) -> Option<KnownDocsUrl> {
+    pub fn from_method(config: &ClassConfig, method: &Method) -> Option<KnownDocsUrl> {
         let is_constructor: bool = method.java.is_constructor();
 
         let pattern: &DocConfig = config.doc_pattern?;
@@ -183,7 +183,7 @@ impl KnownDocsUrl {
         })
     }
 
-    pub(crate) fn from_field(
+    pub fn from_field(
         config: &ClassConfig,
         java_class: &str,
         java_field: &str,

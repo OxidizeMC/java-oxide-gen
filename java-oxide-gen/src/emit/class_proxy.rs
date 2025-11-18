@@ -10,7 +10,7 @@ use std::fmt::Write;
 
 impl Class {
     #[allow(clippy::vec_init_then_push)]
-    pub(crate) fn write_proxy(
+    pub fn write_proxy(
         &self,
         context: &Context,
         methods: &[Method],

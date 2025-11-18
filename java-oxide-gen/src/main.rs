@@ -1,24 +1,33 @@
 // this must go first because of macros.
+use crate::{cli::Cli, config::Config, parser_util::JavaClass, prelude::*};
+use std::{
+    fs::File,
+    io::{self, BufReader, Read},
+    path::Path,
+};
+use zip::{ZipArchive, read::ZipFile};
+
+mod cli;
 mod config;
 mod emit;
 mod identifiers;
 mod parser_util;
+mod setup;
 mod util;
+mod macros;
+pub mod prelude {
+    #[allow(unused_imports)]
+    pub use log::{debug, error, info, trace, warn};
+}
 
-use crate::{config::Config, parser_util::JavaClass};
-use clap::{Parser, Subcommand};
-use std::{
-    fs::File,
-    io::{self, BufReader, Read},
-    path::{Path, PathBuf},
-};
-use zip::{ZipArchive, read::ZipFile};
+include!(concat!(env!("OUT_DIR"), "/codegen.rs"));
 
 /// The core function of this library: Generate Rust code to access Java APIs.
 pub fn run(config: impl Into<Config>) {
     let config: Config = config.into();
-    println!("output: {}", config.src.output.display());
+    info!("Output: {}", pretty_path!(config.src.output));
 
+    info!("Gathering classes...");
     let mut context: emit::Context<'_> = emit::Context::new(&config);
     for file in config.src.inputs.iter() {
         gather_file(&mut context, file).unwrap();
@@ -26,26 +35,21 @@ pub fn run(config: impl Into<Config>) {
 
     let mut out: Vec<u8> = Vec::with_capacity(4096);
     context.write(&mut out).unwrap();
+    info!("Writing bindings...");
     match util::write_generated(&context, &config.src.output, &out[..]) {
         Ok(_) => {}
         Err(e) => panic!("{}", e),
     };
 
     // Generate Java proxy files if proxy_output is specified
-    dbg!(&config.proxy.output);
+    // dbg!(&config.proxy.output);
     if let Some(output) = &config.proxy.output {
         emit::java_proxy::write_java_proxy_files(&context, output).unwrap();
     }
 }
 
 fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::Error> {
-    let verbose: bool = context.config.log_verbose;
-
-    context
-        .progress
-        .lock()
-        .unwrap()
-        .update(format!("reading {}...", path.display()).as_str());
+    info!("Reading {:?}...", pretty_path!(path));
 
     let ext: &std::ffi::OsStr = if let Some(ext) = path.extension() {
         ext
@@ -58,6 +62,7 @@ fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::E
 
     match ext.to_string_lossy().to_ascii_lowercase().as_str() {
         "class" => {
+            debug!("Adding class directly...");
             let class: JavaClass = JavaClass::read(std::fs::read(path)?)?;
             context.add_class(class)?;
         }
@@ -65,20 +70,14 @@ fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::E
             let mut jar: ZipArchive<BufReader<File>> =
                 ZipArchive::new(BufReader::new(File::open(path)?))?;
             let n: usize = jar.len();
+            debug!("Adding {} classes from JAR...", n);
 
             for i in 0..n {
                 let mut file: ZipFile<'_, BufReader<File>> = jar.by_index(i)?;
                 if !file.name().ends_with(".class") {
                     continue;
                 }
-
-                if verbose {
-                    context
-                        .progress
-                        .lock()
-                        .unwrap()
-                        .update(format!("  reading {:3}/{}: {}...", i, n, file.name()).as_str());
-                }
+                // trace!("    Reading {:3}/{}: {:?}...", i, n, pretty_path!(file.enclosed_name().unwrap()));
 
                 let mut buf: Vec<u8> = Vec::new();
                 file.read_to_end(&mut buf)?;
@@ -99,45 +98,17 @@ fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::E
     Ok(())
 }
 
-/// Autogenerate glue code for access Android JVM APIs from Rust
-#[derive(Parser, Debug)]
-#[command(version, about)]
-struct Cli {
-    #[command(subcommand)]
-    cmd: Cmd,
-}
-
-#[derive(Subcommand, Debug)]
-enum Cmd {
-    /// Generate Java Bindings
-    Generate(GenerateCmd),
-}
-
-#[derive(Parser, Debug)]
-struct GenerateCmd {
-    /// Log in more detail
-    #[arg(short, long)]
-    verbose: bool,
-
-    /// Sets a custom config file
-    #[arg(short, long)]
-    config: Option<PathBuf>,
-}
-
 pub fn main() {
-    let cli: Cli = Cli::parse();
+    let cli: Cli = setup::setup_logger_and_cli();
+    info!("Starting...");
 
-    match cli.cmd {
-        Cmd::Generate(cmd) => {
-            let mut config: Config = if let Some(config_path) = cmd.config {
+    match cli.command {
+        cli::Command::Generate(cmd) => {
+            let config: Config = if let Some(config_path) = cmd.config {
                 config::Config::from_file(&config_path).unwrap()
             } else {
                 config::Config::from_current_directory().unwrap()
             };
-
-            if cmd.verbose {
-                config.log_verbose = true;
-            }
             run(config);
         }
     }

@@ -14,13 +14,13 @@ use std::{
 };
 
 #[derive(Debug, Default)]
-pub(crate) struct StructPaths {
+pub struct StructPaths {
     pub mod_: String,
     pub struct_name: String,
 }
 
 impl StructPaths {
-    pub(crate) fn new(class: Id) -> Result<Self, anyhow::Error> {
+    pub fn new(class: Id) -> Result<Self, anyhow::Error> {
         Ok(Self {
             mod_: Class::mod_for(class)?,
             struct_name: Class::name_for(class)?,
@@ -29,13 +29,13 @@ impl StructPaths {
 }
 
 #[derive(Debug)]
-pub(crate) struct Class {
+pub struct Class {
     pub rust: StructPaths,
     pub java: JavaClass,
 }
 
 impl Class {
-    pub(crate) fn mod_for(class: Id) -> Result<String, anyhow::Error> {
+    pub fn mod_for(class: Id) -> Result<String, anyhow::Error> {
         let mut buf: String = String::new();
         for component in class {
             match component {
@@ -52,7 +52,7 @@ impl Class {
         Ok(buf)
     }
 
-    pub(crate) fn name_for(class: Id) -> Result<String, anyhow::Error> {
+    pub fn name_for(class: Id) -> Result<String, anyhow::Error> {
         let mut buf: String = String::new();
         for component in class.iter() {
             match component {
@@ -64,13 +64,13 @@ impl Class {
         Ok(buf)
     }
 
-    pub(crate) fn new(java: JavaClass) -> Result<Self, anyhow::Error> {
+    pub fn new(java: JavaClass) -> Result<Self, anyhow::Error> {
         let rust: StructPaths = StructPaths::new(java.path())?;
 
         Ok(Self { rust, java })
     }
 
-    pub(crate) fn write(&self, context: &Context) -> anyhow::Result<TokenStream> {
+    pub fn write(&self, context: &Context) -> anyhow::Result<TokenStream> {
         let cc: ClassConfig<'_> = context.config.resolve_class(self.java.path().as_str());
 
         // Ignored access_flags: SUPER, SYNTHETIC, ANNOTATION, ABSTRACT

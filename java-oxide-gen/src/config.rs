@@ -4,6 +4,7 @@ use std::{
     io,
     path::{Path, PathBuf},
 };
+use crate::{pretty_path, prelude::*};
 
 fn default_proxy_package() -> String {
     "java_oxide.proxy".to_string()
@@ -326,10 +327,6 @@ impl SourceConfig {
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
-    /// Whether to log verbosely
-    #[serde(default)]
-    pub log_verbose: bool,
-
     /// Configuration for binding generation sources
     #[serde(rename = "source")]
     pub src: SourceConfig,
@@ -401,20 +398,20 @@ impl Config {
     #[allow(dead_code)]
     pub fn from_current_directory() -> io::Result<Self> {
         let current_dir: PathBuf = std::env::current_dir()?.canonicalize()?;
-        let original: &Path = current_dir.as_path();
         let mut path: PathBuf = current_dir.to_owned();
 
         loop {
             path.push("java-oxide.toml");
             if path.exists() {
+                info!("Found config file: {:?}", pretty_path!(&path));
                 return Self::read(&mut File::open(&path)?, path.parent().unwrap());
             }
             if !path.pop() || !path.pop() {
                 Err(io::Error::new(
                     io::ErrorKind::NotFound,
                     format!(
-                        "Failed to find java-oxide.toml in \"{}\" or any of it's parent directories.",
-                        original.display()
+                        "Failed to find 'java-oxide.toml' in {:?} or any of it's parent directories.",
+                        pretty_path!(current_dir)
                     ),
                 ))?;
             }
@@ -474,11 +471,11 @@ impl Config {
 
         for rule in &self.rules {
             if rule.matches_class(class) {
-                res.bind = rule.bind;
-                res.bind_private_classes = rule.bind_private_classes;
-                res.bind_private_methods = rule.bind_private_methods;
-                res.bind_private_fields = rule.bind_private_fields;
-                res.proxy = rule.proxy;
+                res.bind |= rule.bind;
+                res.bind_private_classes |= rule.bind_private_classes;
+                res.bind_private_methods |= rule.bind_private_methods;
+                res.bind_private_fields |= rule.bind_private_fields;
+                res.proxy |= rule.proxy;
             }
         }
 
@@ -497,8 +494,11 @@ impl Config {
 fn resolve_file(path: &Path, dir: &Path) -> PathBuf {
     let path: PathBuf = path.into();
     if path.is_relative() {
-        dir.join(path)
+        let p: PathBuf = dir.join(&path);
+        trace!("Resolving path (relative)  {:?}  -->  {:?}", &path, &p);
+        p
     } else {
+        trace!("Reasolving path (absolute)  {:?}", &path);
         path
     }
 }

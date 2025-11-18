@@ -1,7 +1,7 @@
 use std::io::{self, *};
 
+// TODO: should this exist? would hash comparing work?
 pub struct Difference {
-    // XXX: should they exist here?
     #[allow(unused)]
     pub line_no: u32,
     #[allow(unused)]

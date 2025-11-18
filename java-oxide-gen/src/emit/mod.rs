@@ -9,18 +9,17 @@ mod methods;
 mod modules;
 
 use self::{classes::Class, modules::Module};
-use crate::{config, io_data_err, parser_util, util};
+use crate::{config, io_data_err, parser_util};
 use proc_macro2::{Literal, TokenStream};
 use quote::{TokenStreamExt, format_ident, quote};
 use std::{
-    collections::HashMap, ffi::CString, io, rc::Rc, str::FromStr, sync::Mutex, time::Duration,
+    collections::HashMap, ffi::CString, io, rc::Rc, str::FromStr,
 };
 
 pub struct Context<'a> {
-    pub(crate) config: &'a config::Config,
-    pub(crate) module: Module,
-    pub(crate) all_classes: HashMap<String, Rc<Class>>,
-    pub(crate) progress: Mutex<util::Progress>,
+    pub config: &'a config::Config,
+    pub module: Module,
+    pub all_classes: HashMap<String, Rc<Class>>,
 }
 
 impl<'a> Context<'a> {
@@ -29,13 +28,10 @@ impl<'a> Context<'a> {
             config,
             module: Default::default(),
             all_classes: HashMap::new(),
-            progress: Mutex::new(util::Progress::with_duration(Duration::from_millis(
-                if config.log_verbose { 0 } else { 300 },
-            ))),
         }
     }
 
-    pub(crate) fn throwable_rust_path(&self, mod_: &str) -> TokenStream {
+    pub fn throwable_rust_path(&self, mod_: &str) -> TokenStream {
         self.java_to_rust_path(parser_util::Id("java/lang/Throwable"), mod_)
             .unwrap()
     }

@@ -1,13 +1,13 @@
 use super::{classes::Class, methods::Method};
-use crate::{config::ClassConfig, emit::Context, util};
+use crate::{config::ClassConfig, emit::Context, prelude::*, util};
 use cafebabe::{
     MethodInfo,
     descriptors::{FieldDescriptor, FieldType, ReturnDescriptor},
 };
-use std::{fmt::Write, path::Path};
+use std::{fmt::Write, path::{Path, PathBuf}};
 
 impl Class {
-    pub(crate) fn write_java_proxy(&self, context: &Context) -> anyhow::Result<String> {
+    pub fn write_java_proxy(&self, context: &Context) -> anyhow::Result<String> {
         // Collect methods for this class
         let methods: Vec<Method> = self
             .java
@@ -182,23 +182,33 @@ fn java_type_name(desc: &FieldDescriptor) -> anyhow::Result<String> {
 }
 
 pub fn write_java_proxy_files(context: &Context, output_dir: &Path) -> anyhow::Result<()> {
+    info!("Generating proxies...");
+    let generated_code: Vec<(PathBuf, String)> = generate_java_proxy_files(&context, &output_dir)?;
+    info!("Writing proxies...");
+    for (output_path, java_code) in generated_code {
+        util::write_generated(context, &output_path, java_code.as_bytes())?;
+    }
+    Ok(())
+}
+
+fn generate_java_proxy_files(context: &Context, output_dir: &Path) -> anyhow::Result<Vec<(PathBuf, String)>> {
+    let mut generated_code: Vec<(PathBuf, String)> = Vec::new();
+
     for (_, class) in context.all_classes.iter() {
         let cc: ClassConfig<'_> = context.config.resolve_class(class.java.path().as_str());
         if !cc.proxy {
             continue;
         }
 
-        let java_code: String = class.write_java_proxy(context)?;
-
         // Calculate output file path
         let java_proxy_path: String = class.java.path().as_str().replace("$", "_");
-
         let relative_path: String = format!("{java_proxy_path}.java");
-        let output_file: std::path::PathBuf = output_dir.join(&relative_path);
+        let output_path: PathBuf = output_dir.join(&relative_path);
 
-        // Write Java file
-        util::write_generated(context, &output_file, java_code.as_bytes())?;
+        // Generate Java file
+        info!("Proxying {:?}", class.java.path().as_str().replace("/", "."));
+        generated_code.push((output_path, class.write_java_proxy(context)?));
     }
 
-    Ok(())
+    Ok(generated_code)
 }

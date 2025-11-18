@@ -5,14 +5,14 @@ use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 use std::{collections::BTreeMap, fmt::Write, io, rc::Rc};
 
 #[derive(Debug, Default)]
-pub(crate) struct Module {
+pub struct Module {
     // For consistent diffs / printing order, these should *not* be HashMaps
-    pub(crate) classes: BTreeMap<String, Rc<Class>>,
-    pub(crate) modules: BTreeMap<String, Module>,
+    pub classes: BTreeMap<String, Rc<Class>>,
+    pub modules: BTreeMap<String, Module>,
 }
 
 impl Module {
-    pub(crate) fn write(&self, context: &Context, out: &mut impl io::Write) -> anyhow::Result<()> {
+    pub fn write(&self, context: &Context, out: &mut impl io::Write) -> anyhow::Result<()> {
         for (name, module) in self.modules.iter() {
             writeln!(out)?;
 
