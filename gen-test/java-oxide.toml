@@ -1,0 +1,44 @@
+[source]
+inputs = [
+    "./jars/fabric-loader-0.17.3.jar",
+    "./jars/java-21-base.jar"
+]
+output = "./src/lib.rs"
+
+[proxy]
+package = "com.github.pitchblacknights.oxidizemc.proxy"
+output = "./java-proxy"
+
+[[doc]]
+match = [
+    "net.fabricmc.api.**",
+    "net.fabricmc.loader.api.**",
+]
+class-url = "https://maven.fabricmc.net/docs/fabric-loader-0.17.3/{CLASS}.html"
+method-url = "https://maven.fabricmc.net/docs/fabric-loader-0.17.3/{CLASS}.html#{METHOD}({ARGUMENTS})"
+field-url = "https://maven.fabricmc.net/docs/fabric-loader-0.17.3/{CLASS}.html#{FIELD}"
+constructor-url = "https://maven.fabricmc.net/docs/fabric-loader-0.17.3/{CLASS}.html#{CLASS.INNER}({ARGUMENTS})"
+
+[[include]]
+match = [
+    "net.fabricmc.api.**",
+    "net.fabricmc.loader.api.**",
+    "java.util.Collection",
+    "java.util.function.Consumer",
+    "java.util.function.BiConsumer",
+    "java.lang.String",
+    "java.lang.Class",
+    "java.lang.Throwable",
+    "java.lang.StackTraceElement",
+    "java.lang.Object",
+]
+bind = true
+
+[[include]]
+match = [
+    "net.fabricmc.api.ClientModInitializer",
+    "net.fabricmc.api.DedicatedServerModInitializer",
+    "net.fabricmc.api.ModInitializer",
+    "net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint",
+]
+proxy = true

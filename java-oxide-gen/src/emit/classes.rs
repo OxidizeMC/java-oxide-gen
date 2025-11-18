@@ -87,7 +87,7 @@ impl Class {
             "class"
         };
 
-        let visibility: TokenStream = if self.java.is_public() || cc.include_private_classes {
+        let visibility: TokenStream = if self.java.is_public() || cc.bind_private_classes {
             quote!(pub)
         } else {
             quote!()
@@ -106,7 +106,7 @@ impl Class {
 
         let referencetype_impl: TokenStream = match self.java.is_static() {
             true => quote!(),
-            false => quote!(unsafe impl ::java_spaghetti::ReferenceType for #rust_name {}),
+            false => quote!(unsafe impl ::java_oxide::ReferenceType for #rust_name {}),
         };
 
         let mut out: TokenStream = TokenStream::new();
@@ -120,7 +120,7 @@ impl Class {
 
             #referencetype_impl
 
-            unsafe impl ::java_spaghetti::JniType for #rust_name {
+            unsafe impl ::java_oxide::JniType for #rust_name {
                 fn static_with_jni_type<R>(callback: impl FnOnce(&::std::ffi::CStr) -> R) -> R {
                     callback(#java_path)
                 }
@@ -144,7 +144,7 @@ impl Class {
                     let rust_path: TokenStream =
                         context.java_to_rust_path(path2, &self.rust.mod_).unwrap();
                     out.extend(quote!(
-                        unsafe impl ::java_spaghetti::AssignableTo<#rust_path> for #rust_name {}
+                        unsafe impl ::java_oxide::AssignableTo<#rust_path> for #rust_name {}
                     ));
                     queue.push(path2);
                     visited.insert(path2);
@@ -161,11 +161,11 @@ impl Class {
         let class: Literal = cstring(self.java.path().as_str());
 
         contents.extend(quote!(
-            fn __class_global_ref(__jni_env: ::java_spaghetti::Env) -> ::java_spaghetti::sys::jobject {
-                static __CLASS: ::std::sync::OnceLock<::java_spaghetti::Global<#object>> = ::std::sync::OnceLock::new();
+            fn __class_global_ref(__jni_env: ::java_oxide::Env) -> ::java_oxide::sys::jobject {
+                static __CLASS: ::std::sync::OnceLock<::java_oxide::Global<#object>> = ::std::sync::OnceLock::new();
                 __CLASS
                     .get_or_init(|| unsafe {
-                        ::java_spaghetti::Local::from_raw(__jni_env, __jni_env.require_class(#class)).as_global()
+                        ::java_oxide::Local::from_raw(__jni_env, __jni_env.require_class(#class)).as_global()
                     })
                     .as_raw()
             }
@@ -176,14 +176,14 @@ impl Class {
             .methods()
             .map(|m: &MethodInfo<'_>| Method::new(&self.java, m))
             .filter(|m: &Method<'_>| {
-                (m.java.is_public() || cc.include_private_methods) && !m.java.is_bridge()
+                (m.java.is_public() || cc.bind_private_methods) && !m.java.is_bridge()
             })
             .collect();
         let mut fields: Vec<Field> = self
             .java
             .fields()
             .map(|f: &FieldInfo<'_>| Field::new(&self.java, f))
-            .filter(|f: &Field<'_>| f.java.is_public() || cc.include_private_fields)
+            .filter(|f: &Field<'_>| f.java.is_public() || cc.bind_private_fields)
             .collect();
 
         self.resolve_collisions(&mut methods, &fields)?;

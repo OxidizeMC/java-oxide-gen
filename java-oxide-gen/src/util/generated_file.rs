@@ -40,7 +40,9 @@ pub fn write_generated(
         Ok(file) => {
             let mut original: BufReader<File> = BufReader::new(file);
             let mut first_line: String = String::new();
-            read_line_no_eol(&mut original, &mut first_line)?;
+            read_line_no_eol(&mut original, &mut first_line).map_err(|e: io::Error| {
+                io_data_error!("failed to read line from file {:?}:\n{}", path, e)
+            })?;
 
             let mut found_marker: bool = false;
             for prefix in ["// ", "# "] {
@@ -88,11 +90,12 @@ pub fn write_generated(
                 .force_update(format!("NEW: {}", path.display()).as_str());
         }
         Err(e) => {
-            return Err(e);
+            return io_data_err!("Failed to open file {:?}:\n{}", path, e);
         }
     };
 
     fs::write(path, &full_contents)
+        .map_err(|e: io::Error| io_data_error!("Failed to write to file {:?}:\n{}", path, e))
 }
 
 fn read_line_no_eol(reader: &mut impl BufRead, buffer: &mut String) -> io::Result<usize> {

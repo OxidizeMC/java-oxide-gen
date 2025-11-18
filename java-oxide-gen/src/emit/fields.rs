@@ -94,9 +94,9 @@ impl<'a> Field<'a> {
         let mut out: TokenStream = TokenStream::new();
 
         let env_param: TokenStream = if self.java.is_static() {
-            quote!(__jni_env: ::java_spaghetti::Env<'env>)
+            quote!(__jni_env: ::java_oxide::Env<'env>)
         } else {
-            quote!(self: &::java_spaghetti::Ref<'env, Self>)
+            quote!(self: &::java_oxide::Ref<'env, Self>)
         };
 
         let docs: String = match KnownDocsUrl::from_field(
@@ -158,11 +158,11 @@ impl<'a> Field<'a> {
                     #[doc = #get_docs]
                     #attributes
                     pub fn #get<'env>(#env_param) -> #rust_get_type {
-                        static __FIELD: ::std::sync::OnceLock<::java_spaghetti::JFieldID> = ::std::sync::OnceLock::new();
+                        static __FIELD: ::std::sync::OnceLock<::java_oxide::JFieldID> = ::std::sync::OnceLock::new();
                         #env_let
                         let __jni_class = Self::__class_global_ref(__jni_env);
                         unsafe {
-                            let __jni_field = __FIELD.get_or_init(|| ::java_spaghetti::JFieldID::from_raw(__jni_env.#require_field(__jni_class, #java_name, #descriptor))).as_raw();
+                            let __jni_field = __FIELD.get_or_init(|| ::java_oxide::JFieldID::from_raw(__jni_env.#require_field(__jni_class, #java_name, #descriptor))).as_raw();
                             __jni_env.#get_field(#this_or_class, __jni_field)
                         }
                     }
@@ -180,11 +180,11 @@ impl<'a> Field<'a> {
                         #[doc = #set_docs]
                         #attributes
                         pub fn #set<#lifetimes>(#env_param, value: #rust_set_type) {
-                            static __FIELD: ::std::sync::OnceLock<::java_spaghetti::JFieldID> = ::std::sync::OnceLock::new();
+                            static __FIELD: ::std::sync::OnceLock<::java_oxide::JFieldID> = ::std::sync::OnceLock::new();
                             #env_let
                             let __jni_class = Self::__class_global_ref(__jni_env);
                             unsafe {
-                                let __jni_field = __FIELD.get_or_init(|| ::java_spaghetti::JFieldID::from_raw(__jni_env.#require_field(__jni_class, #java_name, #descriptor))).as_raw();
+                                let __jni_field = __FIELD.get_or_init(|| ::java_oxide::JFieldID::from_raw(__jni_env.#require_field(__jni_class, #java_name, #descriptor))).as_raw();
                                 __jni_env.#set_field(#this_or_class, __jni_field, value);
                             }
                         }
@@ -258,15 +258,15 @@ pub enum RustTypeFlavor {
 
 fn flavorify(ty: TokenStream, flavor: RustTypeFlavor) -> TokenStream {
     match flavor {
-        RustTypeFlavor::ImplAsArg => quote!(impl ::java_spaghetti::AsArg<#ty>),
+        RustTypeFlavor::ImplAsArg => quote!(impl ::java_oxide::AsArg<#ty>),
         RustTypeFlavor::OptionLocal => {
-            quote!(::std::option::Option<::java_spaghetti::Local<'env, #ty>>)
+            quote!(::std::option::Option<::java_oxide::Local<'env, #ty>>)
         }
         RustTypeFlavor::OptionRef => {
-            quote!(::std::option::Option<::java_spaghetti::Ref<'env, #ty>>)
+            quote!(::std::option::Option<::java_oxide::Ref<'env, #ty>>)
         }
-        RustTypeFlavor::Arg => quote!(::java_spaghetti::Arg<#ty>),
-        RustTypeFlavor::Return => quote!(::java_spaghetti::Return<'env, #ty>),
+        RustTypeFlavor::Arg => quote!(::java_oxide::Arg<#ty>),
+        RustTypeFlavor::Return => quote!(::java_oxide::Return<'env, #ty>),
     }
 }
 
@@ -307,14 +307,14 @@ pub fn emit_type(
         let throwable: TokenStream = context.throwable_rust_path(mod_);
 
         let mut res: TokenStream = match &descriptor.field_type {
-            FieldType::Boolean => quote!(::java_spaghetti::BooleanArray),
-            FieldType::Byte => quote!(::java_spaghetti::ByteArray),
-            FieldType::Char => quote!(::java_spaghetti::CharArray),
-            FieldType::Short => quote!(::java_spaghetti::ShortArray),
-            FieldType::Integer => quote!(::java_spaghetti::IntArray),
-            FieldType::Long => quote!(::java_spaghetti::LongArray),
-            FieldType::Float => quote!(::java_spaghetti::FloatArray),
-            FieldType::Double => quote!(::java_spaghetti::DoubleArray),
+            FieldType::Boolean => quote!(::java_oxide::BooleanArray),
+            FieldType::Byte => quote!(::java_oxide::ByteArray),
+            FieldType::Char => quote!(::java_oxide::CharArray),
+            FieldType::Short => quote!(::java_oxide::ShortArray),
+            FieldType::Integer => quote!(::java_oxide::IntArray),
+            FieldType::Long => quote!(::java_oxide::LongArray),
+            FieldType::Float => quote!(::java_oxide::FloatArray),
+            FieldType::Double => quote!(::java_oxide::DoubleArray),
             FieldType::Object(class_name) => {
                 let class: Id<'_> = Id::from(class_name);
 
@@ -331,11 +331,11 @@ pub fn emit_type(
                     }
                 };
 
-                quote!(::java_spaghetti::ObjectArray<#path, #throwable>)
+                quote!(::java_oxide::ObjectArray<#path, #throwable>)
             }
         };
         for _ in 0..(descriptor.dimensions - 1) {
-            res = quote!(::java_spaghetti::ObjectArray<#res, #throwable>)
+            res = quote!(::java_oxide::ObjectArray<#res, #throwable>)
         }
 
         flavorify(res, flavor)

@@ -17,7 +17,7 @@ impl Class {
 
         let java_proxy_path: String = format!(
             "{}/{}",
-            context.config.proxy_package,
+            context.config.proxy.package,
             self.java.path().as_str().replace("$", "_")
         );
 

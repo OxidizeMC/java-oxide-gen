@@ -10,7 +10,7 @@
 
 mod util {
     use super::java::lang::{String as JString, Throwable};
-    use java_spaghetti::{sys::jsize, Env, JavaDebug, Local, Ref, StringChars, ThrowableType};
+    use java_oxide::{sys::jsize, Env, JavaDebug, Local, Ref, StringChars, ThrowableType};
     use std::{char::DecodeUtf16Error, fmt};
 
     impl JavaDebug for Throwable {

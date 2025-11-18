@@ -30,7 +30,7 @@ impl<'a> Context<'a> {
             module: Default::default(),
             all_classes: HashMap::new(),
             progress: Mutex::new(util::Progress::with_duration(Duration::from_millis(
-                if config.logging_verbose { 0 } else { 300 },
+                if config.log_verbose { 0 } else { 300 },
             ))),
         }
     }
@@ -81,7 +81,7 @@ impl<'a> Context<'a> {
 
     pub fn add_class(&mut self, class: parser_util::JavaClass) -> Result<(), anyhow::Error> {
         let cc: config::ClassConfig<'_> = self.config.resolve_class(class.path().as_str());
-        if !cc.include {
+        if !cc.bind {
             return Ok(());
         }
 

@@ -12,13 +12,13 @@ Easily generate type-safe bindings for calling Java APIs from Rust.
   - a proxy Java class where all methods call into Rust
   - Rust glue to receive and forward calls to the Rust trait
 - Flexible configuration based on glob rules matching Java classes. All matching rules are merged.
-- Actual documentation (when compared to `java-spaghetti-gen`)
+- Actual documentation on how to generate bindings (when compared to `java-spaghetti-gen`)
 
 ## Differences vs `java-spaghetti` (& `jni-bindgen`)
 
 This project started out as a fork of [`java-spaghetti`](https://github.com/Dirbaio/java-spaghetti), which is originally a fork [`jni-bindgen`](https://github.com/MaulingMonkey/jni-bindgen).
 
-`java-spaghetti` took the route of generating "mini-bindings", that are tailored specifically to your project, and can be embeded within your crate. This design, however, is not suited for large-scale bindings that are intended to be used as/in libraries. `java-oxide` partially goes back to the design of `jni-bindgen`, it generates crates with bindings for a whole java API (or multiple). `java-oxide` still uses `java-spaghetti`'s JNI wrapper library because it is very useful, this is just a fork of the bindgen portion.
+`java-spaghetti` took the route of generating "mini-bindings", that are tailored specifically to your project, and can be embeded within your crate. This design, however, is not suited for large-scale bindings that are intended to be used as/in libraries. `java-oxide` partially goes back to the design of `jni-bindgen`, it generates crates with bindings for a whole java API (or multiple).
 
 The list of differences from `java-spaghetti` are:
 

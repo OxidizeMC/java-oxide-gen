@@ -6,22 +6,22 @@ use std::{
 };
 
 fn default_proxy_package() -> String {
-    "java_oxide/proxy".to_string()
+    "java_oxide.proxy".to_string()
 }
 fn default_slash() -> String {
-    String::from("/")
+    "/".to_string()
 }
 fn default_period() -> String {
-    String::from(".")
+    ".".to_string()
 }
 fn default_comma() -> String {
-    String::from(",")
+    ",".to_string()
 }
 
 /// Configuration for what classes to bind/proxy
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "kebab-case")]
-pub struct ConfigInclude {
+pub struct IncludeConfig {
     /// What java class(es) to match against.  This takes the form of a glob pattern matching JNI paths.
     ///
     /// Glob patterns are case-sensitive and require literal path separators (/ cannot be matched by *).
@@ -38,19 +38,19 @@ pub struct ConfigInclude {
     pub matches: Vec<String>,
 
     #[serde(default)]
-    pub bind: Option<bool>,
+    pub bind: bool,
 
     #[serde(default)]
-    pub bind_private_classes: Option<bool>,
+    pub bind_private_classes: bool,
     #[serde(default)]
-    pub bind_private_methods: Option<bool>,
+    pub bind_private_methods: bool,
     #[serde(default)]
-    pub bind_private_fields: Option<bool>,
+    pub bind_private_fields: bool,
 
     #[serde(default)]
-    pub proxy: Option<bool>,
+    pub proxy: bool,
 }
-impl ConfigInclude {
+impl IncludeConfig {
     pub fn check(&self) -> Result<(), Vec<&'static str>> {
         let mut errors: Vec<&'static str> = Vec::new();
         if self.matches.is_empty() {
@@ -59,13 +59,11 @@ impl ConfigInclude {
         if self.matches.iter().any(|x: &String| x.is_empty()) {
             errors.push("Zero length strings are not allowed in 'include.match'");
         }
-        if self.bind.is_none() && self.proxy.is_none() {
+        if !self.bind && !self.proxy {
             errors.push("Either 'include.bind' or 'include.proxy' must be set to true");
         }
-        if self.bind.is_none()
-            && (self.bind_private_classes.is_some()
-                || self.bind_private_fields.is_some()
-                || self.bind_private_methods.is_some())
+        if !self.bind
+            && (self.bind_private_classes || self.bind_private_fields || self.bind_private_methods)
         {
             errors.push(
                 "'include.bind' must also be set to true if any 'include.bind-private-*' values are set to true",
@@ -97,7 +95,7 @@ impl ConfigInclude {
 /// Configuration for Documentation URL patterns
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "kebab-case")]
-pub struct ConfigDoc {
+pub struct DocConfig {
     /// What java class(es) to match against.  This takes the form of a glob pattern matching JNI paths.
     ///
     /// Glob patterns are case-sensitive and require literal path separators (/ cannot be matched by *).
@@ -166,9 +164,9 @@ pub struct ConfigDoc {
 
     /// Configuration for what separators to use when generating Documentation URLs
     #[serde(default)]
-    pub sep: ConfigDocSep,
+    pub sep: DocSepConfig,
 }
-impl ConfigDoc {
+impl DocConfig {
     pub fn check(&self) -> Result<(), Vec<&'static str>> {
         let mut errors: Vec<&'static str> = Vec::new();
         if self.matches.is_empty() {
@@ -230,7 +228,7 @@ impl ConfigDoc {
 /// Configuration for what separators to use when generating Documentation URLs
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "kebab-case")]
-pub struct ConfigDocSep {
+pub struct DocSepConfig {
     /// What to use in the {CLASS} portion of URLs to separate namespaces.  Defaults to "/".
     #[serde(default = "default_slash")]
     pub class_namespace: String,
@@ -251,7 +249,7 @@ pub struct ConfigDocSep {
     #[serde(default = "default_comma")]
     pub argument_inner_class: String,
 }
-impl Default for ConfigDocSep {
+impl Default for DocSepConfig {
     fn default() -> Self {
         Self {
             class_namespace: default_slash(),
@@ -265,20 +263,23 @@ impl Default for ConfigDocSep {
 
 /// Configuration for Java proxy generation
 #[derive(Deserialize, Debug)]
-pub struct ConfigProxy {
+pub struct ProxyConfig {
     /// The Java package location for generated proxies
     #[serde(default = "default_proxy_package")]
     pub package: String,
     /// Where to place the generated proxies
-    pub output: String,
+    #[serde(default)]
+    pub output: Option<PathBuf>,
 }
-impl ConfigProxy {
+impl ProxyConfig {
     pub fn check(&self) -> Result<(), Vec<&'static str>> {
         let mut errors: Vec<&'static str> = Vec::new();
         if self.package.is_empty() {
             errors.push("'proxy.package' cannot be an empty string");
         }
-        if self.output.is_empty() {
+        if let Some(output) = &self.output
+            && output.as_os_str().is_empty()
+        {
             errors.push("'proxy.output' cannot be an empty string");
         }
         if !errors.is_empty() {
@@ -287,25 +288,33 @@ impl ConfigProxy {
         Ok(())
     }
 }
+impl Default for ProxyConfig {
+    fn default() -> Self {
+        Self {
+            package: default_proxy_package(),
+            output: None,
+        }
+    }
+}
 
 /// Configuration for binding generation sources
 #[derive(Deserialize, Debug)]
-pub struct ConfigSource {
+pub struct SourceConfig {
     /// A list of path(s) to JAR input(s)
-    pub inputs: Vec<String>,
+    pub inputs: Vec<PathBuf>,
     /// Where to place generated bindings
-    pub output: String,
+    pub output: PathBuf,
 }
-impl ConfigSource {
+impl SourceConfig {
     pub fn check(&self) -> Result<(), Vec<&'static str>> {
         let mut errors: Vec<&'static str> = Vec::new();
         if self.inputs.is_empty() {
             errors.push("At least one input JAR must be specified in 'source.inputs'");
         }
-        if self.inputs.iter().any(|x| x.is_empty()) {
+        if self.inputs.iter().any(|x| x.as_os_str().is_empty()) {
             errors.push("Empty strings are not allowed in 'source.inputs'");
         }
-        if self.output.is_empty() {
+        if self.output.as_os_str().is_empty() {
             errors.push("'source.output' cannot be an empty string");
         }
         if !errors.is_empty() {
@@ -317,21 +326,26 @@ impl ConfigSource {
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
+    /// Whether to log verbosely
+    #[serde(default)]
+    pub log_verbose: bool,
+
     /// Configuration for binding generation sources
-    pub source: ConfigSource,
+    #[serde(rename = "source")]
+    pub src: SourceConfig,
 
     /// Optional configuration for Java proxy generation
     #[serde(default)]
-    pub proxy: Option<ConfigProxy>,
+    pub proxy: ProxyConfig,
 
     /// Optional list of configurations for Documentation URL patterns
     #[serde(default)]
     #[serde(rename = "doc")]
-    pub docs: Option<Vec<ConfigDoc>>,
+    pub docs: Option<Vec<DocConfig>>,
 
     /// List of configurations for what classes to bind/proxy
     #[serde(rename = "include")]
-    pub includes: Vec<ConfigInclude>,
+    pub rules: Vec<IncludeConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -341,7 +355,7 @@ pub struct ClassConfig<'a> {
     pub bind_private_methods: bool,
     pub bind_private_fields: bool,
     pub proxy: bool,
-    pub doc_pattern: Option<&'a ConfigDoc>,
+    pub doc_pattern: Option<&'a DocConfig>,
 }
 
 impl Config {
@@ -356,12 +370,26 @@ impl Config {
         };
         config.check();
 
-        config.source.output = resolve_file(&config.source.output, dir);
-        if let Some(proxy) = &mut config.proxy {
-            (*proxy).output = resolve_file(&proxy.output, dir);
+        config.src.output = resolve_file(&config.src.output, dir);
+        if let Some(output) = &mut config.proxy.output {
+            *output = resolve_file(output, dir);
         }
-        for f in &mut config.source.inputs {
+        for f in &mut config.src.inputs {
             *f = resolve_file(f, dir)
+        }
+
+        config.proxy.package = config.proxy.package.replace(".", "/");
+        if let Some(docs) = &mut config.docs {
+            for doc in docs {
+                for class in &mut doc.matches {
+                    *class = class.replace(".", "/");
+                }
+            }
+        }
+        for rule in &mut config.rules {
+            for class in &mut rule.matches {
+                *class = class.replace(".", "/");
+            }
         }
 
         dbg!(&config);
@@ -372,10 +400,10 @@ impl Config {
     /// root of the filesystem and cannot continue.
     #[allow(dead_code)]
     pub fn from_current_directory() -> io::Result<Self> {
-        let current_dir: PathBuf = std::env::current_dir()?;
-
-        let original: &Path = &current_dir.as_path();
+        let current_dir: PathBuf = std::env::current_dir()?.canonicalize()?;
+        let original: &Path = current_dir.as_path();
         let mut path: PathBuf = current_dir.to_owned();
+
         loop {
             path.push("java-oxide.toml");
             if path.exists() {
@@ -396,8 +424,10 @@ impl Config {
     /// Search the specified directory - or failing that, it's ancestors - until we find "java-oxide.toml" or reach the
     /// root of the filesystem and cannot continue.
     pub fn from_file(path: &Path) -> io::Result<Self> {
-        let mut file: File = File::open(path)?;
-        let config_dir: &Path = path.parent().unwrap_or(Path::new("."));
+        let current_dir: PathBuf = std::env::current_dir()?;
+        let path: PathBuf = path.canonicalize().unwrap();
+        let mut file: File = File::open(&path)?;
+        let config_dir: &Path = path.parent().unwrap_or(current_dir.as_path());
         Self::read(&mut file, config_dir)
     }
 
@@ -405,12 +435,10 @@ impl Config {
     fn check(&self) {
         let mut errors: Vec<&'static str> = Vec::new();
 
-        if let Err(e) = self.source.check() {
+        if let Err(e) = self.src.check() {
             errors.extend(e);
         }
-        if let Some(proxy) = &self.proxy
-            && let Err(e) = proxy.check()
-        {
+        if let Err(e) = self.proxy.check() {
             errors.extend(e);
         }
         if let Some(docs) = &self.docs {
@@ -420,7 +448,7 @@ impl Config {
                 }
             }
         }
-        for include in &self.includes {
+        for include in &self.rules {
             if let Err(e) = include.check() {
                 errors.extend(e);
             }
@@ -444,23 +472,13 @@ impl Config {
             doc_pattern: None,
         };
 
-        for rule in &self.includes {
+        for rule in &self.rules {
             if rule.matches_class(class) {
-                if let Some(bind) = rule.bind {
-                    res.bind = bind;
-                }
-                if let Some(bind_private_classes) = rule.bind_private_classes {
-                    res.bind_private_classes = bind_private_classes;
-                }
-                if let Some(bind_private_methods) = rule.bind_private_methods {
-                    res.bind_private_methods = bind_private_methods;
-                }
-                if let Some(bind_private_fields) = rule.bind_private_fields {
-                    res.bind_private_fields = bind_private_fields;
-                }
-                if let Some(proxy) = rule.proxy {
-                    res.proxy = proxy;
-                }
+                res.bind = rule.bind;
+                res.bind_private_classes = rule.bind_private_classes;
+                res.bind_private_methods = rule.bind_private_methods;
+                res.bind_private_fields = rule.bind_private_fields;
+                res.proxy = rule.proxy;
             }
         }
 
@@ -476,12 +494,11 @@ impl Config {
     }
 }
 
-fn resolve_file(path: &String, dir: &Path) -> String {
-    // let path: String = expand_vars(&path.to_string_lossy());
+fn resolve_file(path: &Path, dir: &Path) -> PathBuf {
     let path: PathBuf = path.into();
     if path.is_relative() {
-        dir.join(path).to_string_lossy().to_string()
+        dir.join(path)
     } else {
-        path.to_string_lossy().to_string()
+        path
     }
 }

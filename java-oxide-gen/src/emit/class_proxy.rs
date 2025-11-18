@@ -32,7 +32,7 @@ impl Class {
 
         let java_proxy_path: String = format!(
             "{}/{}",
-            context.config.proxy_package,
+            context.config.proxy.package,
             self.java.path().as_str().replace("$", "_")
         );
 
@@ -108,7 +108,7 @@ impl Class {
             trait_methods.extend(quote!(
                 fn #rust_name<'env>(
                     &self,
-                    env: ::java_spaghetti::Env<'env>,
+                    env: ::java_oxide::Env<'env>,
                     #trait_args
                 ) -> #ret;
             ));
@@ -116,7 +116,7 @@ impl Class {
             out.extend(quote!(
                 #[unsafe(no_mangle)]
                 extern "system" fn #native_name<'env>(
-                    __jni_env: ::java_spaghetti::Env<'env>,
+                    __jni_env: ::java_oxide::Env<'env>,
                     _class: *mut (), // self class, ignore
                     ptr: i64,
                     #native_args
@@ -145,7 +145,7 @@ impl Class {
 
             #[unsafe(no_mangle)]
             extern "system" fn #native_name(
-                __jni_env: ::java_spaghetti::Env<'_>,
+                __jni_env: ::java_oxide::Env<'_>,
                 _class: *mut (), // self class, ignore
                 ptr: i64,
             ) {
@@ -158,14 +158,14 @@ impl Class {
 
         contents.extend(quote!(
             pub fn new_proxy<'env>(
-                env: ::java_spaghetti::Env<'env>,
+                env: ::java_oxide::Env<'env>,
                 proxy: ::std::sync::Arc<dyn #rust_proxy_name>,
-            ) -> Result<::java_spaghetti::Local<'env, Self>, ::java_spaghetti::Local<'env, #throwable>> {
-                static __CLASS: ::std::sync::OnceLock<::java_spaghetti::Global<#object>> =
+            ) -> Result<::java_oxide::Local<'env, Self>, ::java_oxide::Local<'env, #throwable>> {
+                static __CLASS: ::std::sync::OnceLock<::java_oxide::Global<#object>> =
                     ::std::sync::OnceLock::new();
                 let __jni_class = __CLASS
                     .get_or_init(|| unsafe {
-                        ::java_spaghetti::Local::from_raw(env, env.require_class(#java_proxy_path),)
+                        ::java_oxide::Local::from_raw(env, env.require_class(#java_proxy_path),)
                         .as_global()
                     })
                     .as_raw();
@@ -173,14 +173,14 @@ impl Class {
                 let b = ::std::boxed::Box::new(proxy);
                 let ptr = ::std::boxed::Box::into_raw(b);
 
-                static __METHOD: ::std::sync::OnceLock<::java_spaghetti::JMethodID> = ::std::sync::OnceLock::new();
+                static __METHOD: ::std::sync::OnceLock<::java_oxide::JMethodID> = ::std::sync::OnceLock::new();
                 unsafe {
-                    let __jni_args = [::java_spaghetti::sys::jvalue {
+                    let __jni_args = [::java_oxide::sys::jvalue {
                         j: ptr.expose_provenance() as i64,
                     }];
                     let __jni_method = __METHOD
                         .get_or_init(|| {
-                            ::java_spaghetti::JMethodID::from_raw(env.require_method(
+                            ::java_oxide::JMethodID::from_raw(env.require_method(
                                 __jni_class,
                                 c"<init>",
                                 c"(J)V",

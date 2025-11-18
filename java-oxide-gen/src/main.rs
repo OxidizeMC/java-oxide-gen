@@ -4,7 +4,6 @@ mod emit;
 mod identifiers;
 mod parser_util;
 mod util;
-mod config_new;
 
 use crate::{config::Config, parser_util::JavaClass};
 use clap::{Parser, Subcommand};
@@ -16,29 +15,31 @@ use std::{
 use zip::{ZipArchive, read::ZipFile};
 
 /// The core function of this library: Generate Rust code to access Java APIs.
-pub fn run(config: impl Into<Config>) -> Result<(), anyhow::Error> {
+pub fn run(config: impl Into<Config>) {
     let config: Config = config.into();
-    println!("output: {}", config.output.display());
+    println!("output: {}", config.src.output.display());
 
     let mut context: emit::Context<'_> = emit::Context::new(&config);
-    for file in config.input.iter() {
-        gather_file(&mut context, file)?;
+    for file in config.src.inputs.iter() {
+        gather_file(&mut context, file).unwrap();
     }
 
     let mut out: Vec<u8> = Vec::with_capacity(4096);
-    context.write(&mut out)?;
-    util::write_generated(&context, &config.output, &out[..])?;
+    context.write(&mut out).unwrap();
+    match util::write_generated(&context, &config.src.output, &out[..]) {
+        Ok(_) => {}
+        Err(e) => panic!("{}", e),
+    };
 
     // Generate Java proxy files if proxy_output is specified
-    if let Some(proxy_output) = &config.proxy_output {
-        emit::java_proxy::write_java_proxy_files(&context, proxy_output)?;
+    dbg!(&config.proxy.output);
+    if let Some(output) = &config.proxy.output {
+        emit::java_proxy::write_java_proxy_files(&context, output).unwrap();
     }
-
-    Ok(())
 }
 
 fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::Error> {
-    let verbose: bool = context.config.logging_verbose;
+    let verbose: bool = context.config.log_verbose;
 
     context
         .progress
@@ -128,13 +129,6 @@ pub fn main() {
 
     match cli.cmd {
         Cmd::Generate(cmd) => {
-            if let Some(config_path) = &cmd.config {
-                config_new::Config::from_file(&config_path).unwrap()
-            } else {
-                config_new::Config::from_current_directory().unwrap()
-            };
-            std::process::exit(0);
-
             let mut config: Config = if let Some(config_path) = cmd.config {
                 config::Config::from_file(&config_path).unwrap()
             } else {
@@ -142,9 +136,9 @@ pub fn main() {
             };
 
             if cmd.verbose {
-                config.logging_verbose = true;
+                config.log_verbose = true;
             }
-            run(config).unwrap();
+            run(config);
         }
     }
 }

@@ -1,6 +1,6 @@
 use super::methods::Method;
 use crate::{
-    config::{ClassConfig, DocPattern},
+    config::{ClassConfig, DocConfig},
     parser_util::Id,
 };
 use cafebabe::descriptors::{FieldDescriptor, FieldType};
@@ -20,7 +20,7 @@ impl Display for KnownDocsUrl {
 impl KnownDocsUrl {
     pub(crate) fn from_class(config: &ClassConfig, java_class: Id) -> Option<KnownDocsUrl> {
         let java_class: &str = java_class.as_str();
-        let pattern: &DocPattern = config.doc_pattern?;
+        let pattern: &DocConfig = config.doc_pattern?;
 
         for ch in java_class.chars() {
             match ch {
@@ -41,13 +41,14 @@ impl KnownDocsUrl {
         };
 
         let java_class: String = java_class
-            .replace('/', pattern.class_namespace_separator.as_str())
-            .replace('$', pattern.class_inner_class_seperator.as_str());
+            .replace('/', pattern.sep.class_namespace.as_str())
+            .replace('$', pattern.sep.class_inner_class.as_str());
 
         Some(KnownDocsUrl {
             label: no_namespace.to_owned().replace('$', "."),
             url: pattern
-                .class_url_pattern
+                .class_url
+                .as_ref()?
                 .replace("{CLASS}", java_class.as_str())
                 .replace("{CLASS.LOWER}", java_class.to_ascii_lowercase().as_str()),
         })
@@ -56,14 +57,14 @@ impl KnownDocsUrl {
     pub(crate) fn from_method(config: &ClassConfig, method: &Method) -> Option<KnownDocsUrl> {
         let is_constructor: bool = method.java.is_constructor();
 
-        let pattern: &DocPattern = config.doc_pattern?;
+        let pattern: &DocConfig = config.doc_pattern?;
         let url_pattern: &String = if is_constructor {
             pattern
-                .constructor_url_pattern
+                .constructor_url
                 .as_ref()
-                .or(pattern.method_url_pattern.as_ref())?
+                .or(pattern.method_url.as_ref())?
         } else {
-            pattern.method_url_pattern.as_ref()?
+            pattern.method_url.as_ref()?
         };
 
         for ch in method.class.path().as_str().chars() {
@@ -81,8 +82,8 @@ impl KnownDocsUrl {
             .class
             .path()
             .as_str()
-            .replace('/', pattern.class_namespace_separator.as_str())
-            .replace('$', pattern.class_inner_class_seperator.as_str());
+            .replace('/', pattern.sep.class_namespace.as_str())
+            .replace('$', pattern.sep.class_inner_class.as_str());
 
         let java_outer_class: String = method
             .class
@@ -91,7 +92,7 @@ impl KnownDocsUrl {
             .rsplit('/')
             .next()
             .unwrap()
-            .replace('$', pattern.class_inner_class_seperator.as_str());
+            .replace('$', pattern.sep.class_inner_class.as_str());
 
         let java_inner_class: &str = method
             .class
@@ -130,7 +131,7 @@ impl KnownDocsUrl {
             }
 
             if !java_args.is_empty() {
-                java_args.push_str(&pattern.argument_seperator[..]);
+                java_args.push_str(&pattern.sep.argument[..]);
             }
 
             let obj_arg: String;
@@ -147,8 +148,8 @@ impl KnownDocsUrl {
                     let class: Id<'_> = Id::from(class_name);
                     obj_arg = class
                         .as_str()
-                        .replace('/', pattern.argument_namespace_separator.as_str())
-                        .replace('$', pattern.argument_inner_class_seperator.as_str());
+                        .replace('/', pattern.sep.argument_namespace.as_str())
+                        .replace('$', pattern.sep.argument_inner_class.as_str());
                     obj_arg.as_str()
                 }
             });
@@ -188,8 +189,8 @@ impl KnownDocsUrl {
         java_field: &str,
         _java_descriptor: FieldDescriptor,
     ) -> Option<KnownDocsUrl> {
-        let pattern: &DocPattern = config.doc_pattern?;
-        let field_url_pattern: &String = pattern.field_url_pattern.as_ref()?;
+        let pattern: &DocConfig = config.doc_pattern?;
+        let field_url_pattern: &String = pattern.field_url.as_ref()?;
 
         for ch in java_class.chars() {
             match ch {
@@ -214,8 +215,8 @@ impl KnownDocsUrl {
         }
 
         let java_class: String = java_class
-            .replace('/', pattern.class_namespace_separator.as_str())
-            .replace('$', pattern.class_inner_class_seperator.as_str());
+            .replace('/', pattern.sep.class_namespace.as_str())
+            .replace('$', pattern.sep.class_inner_class.as_str());
 
         // No {RETURN} support... yet?
 

@@ -76,9 +76,9 @@ impl<'a> Method<'a> {
 
         // Contents of fn name<'env>(...) {
         let mut params_decl: TokenStream = if self.java.is_constructor() || self.java.is_static() {
-            quote!(__jni_env: ::java_spaghetti::Env<'env>,)
+            quote!(__jni_env: ::java_oxide::Env<'env>,)
         } else {
-            quote!(self: &::java_spaghetti::Ref<'env, Self>,)
+            quote!(self: &::java_oxide::Ref<'env, Self>,)
         };
 
         for (arg_idx, arg) in descriptor.parameters.iter().enumerate() {
@@ -91,7 +91,7 @@ impl<'a> Method<'a> {
                 &mut emit_reject_reasons,
             )?;
 
-            params_array.extend(quote!(::java_spaghetti::AsJValue::as_jvalue(&#arg_name),));
+            params_array.extend(quote!(::java_oxide::AsJValue::as_jvalue(&#arg_name),));
             params_decl.extend(quote!(#arg_name: #arg_type,));
         }
 
@@ -118,7 +118,7 @@ impl<'a> Method<'a> {
         if self.java.is_constructor() {
             if descriptor.return_type == ReturnDescriptor::Void {
                 ret_method_fragment = "object";
-                ret_decl = quote!(::java_spaghetti::Local<'env, Self>);
+                ret_decl = quote!(::java_oxide::Local<'env, Self>);
             } else {
                 emit_reject_reasons.push("ERROR:  Constructor should've returned void");
             }
@@ -170,14 +170,14 @@ impl<'a> Method<'a> {
         out.extend(quote!(
             #[doc = #docs]
             #attributes
-            pub fn #method_name<'env>(#params_decl) -> ::std::result::Result<#ret_decl, ::java_spaghetti::Local<'env, #throwable>> {
-                static __METHOD: ::std::sync::OnceLock<::java_spaghetti::JMethodID> = ::std::sync::OnceLock::new();
+            pub fn #method_name<'env>(#params_decl) -> ::std::result::Result<#ret_decl, ::java_oxide::Local<'env, #throwable>> {
+                static __METHOD: ::std::sync::OnceLock<::java_oxide::JMethodID> = ::std::sync::OnceLock::new();
                 unsafe {
                     let __jni_args = [#params_array];
                     #env_let
                     let __jni_class = Self::__class_global_ref(__jni_env);
                     let __jni_method = __METHOD.get_or_init(||
-                        ::java_spaghetti::JMethodID::from_raw(__jni_env.#require_method(__jni_class, #java_name, #descriptor))
+                        ::java_oxide::JMethodID::from_raw(__jni_env.#require_method(__jni_class, #java_name, #descriptor))
                     ).as_raw();
 
                     #call

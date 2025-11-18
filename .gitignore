@@ -1,2 +1,4 @@
-/target
-/gen-test
+**/target
+/gen-test/jars
+/gen-test/src/lib.rs
+/gen-test/cargo-check-output.txt

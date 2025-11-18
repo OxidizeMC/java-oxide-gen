@@ -2,5 +2,9 @@
 
 cargo build
 pushd gen-test
-..\target\debug\java-oxide.exe generate --config java-oxide.toml
+set "RUST_BACKTRACE=1"
+..\target\debug\java-oxide-gen.exe generate
+cargo fmt -- --config-path ..\rustfmt.toml --config "max_width=150"
+cargo check >cargo-check-output.txt 2>&1
+set "RUST_BACKTRACE="
 popd
