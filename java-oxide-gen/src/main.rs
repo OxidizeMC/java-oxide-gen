@@ -11,10 +11,10 @@ mod cli;
 mod config;
 mod emit;
 mod identifiers;
+mod macros;
 mod parser_util;
 mod setup;
 mod util;
-mod macros;
 pub mod prelude {
     #[allow(unused_imports)]
     pub use log::{debug, error, info, trace, warn};

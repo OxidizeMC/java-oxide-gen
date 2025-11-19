@@ -1,5 +1,5 @@
 use super::Difference;
-use crate::{emit, io_data_err, io_data_error, pretty_path, prelude::*};
+use crate::{emit, io_data_err, io_data_error, prelude::*, pretty_path};
 use std::{
     fs::{self, *},
     io::{self, BufRead, BufReader, Cursor, ErrorKind},
@@ -40,9 +40,15 @@ pub fn write_generated(
         Ok(file) => {
             let mut original: BufReader<File> = BufReader::new(file);
             let mut first_line: String = String::new();
-            read_line_no_eol(&mut original, &mut first_line).map_err(|e: io::Error| -> io::Error {
-                io_data_error!("Failed to read line from file {:?}:\n{}", pretty_path!(path), e)
-            })?;
+            read_line_no_eol(&mut original, &mut first_line).map_err(
+                |e: io::Error| -> io::Error {
+                    io_data_error!(
+                        "Failed to read line from file {:?}:\n{}",
+                        pretty_path!(path),
+                        e
+                    )
+                },
+            )?;
 
             let mut found_marker: bool = false;
             for prefix in ["// ", "# "] {

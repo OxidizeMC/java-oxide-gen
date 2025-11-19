@@ -1,11 +1,11 @@
+use crate::{prelude::*, pretty_path};
 use serde::Deserialize;
+use soft_canonicalize::soft_canonicalize;
 use std::{
     fs::File,
     io,
     path::{Path, PathBuf},
 };
-use crate::{pretty_path, prelude::*};
-use soft_canonicalize::soft_canonicalize;
 
 fn default_proxy_package() -> String {
     "java_oxide.proxy".to_string()
@@ -24,7 +24,7 @@ fn default_comma() -> String {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub struct IncludeConfig {
-    /// What java class(es) to match against.  This takes the form of a glob pattern matching JNI paths.
+    /// What java class(es) to match against. This takes the form of a glob pattern matching JNI paths.
     ///
     /// Glob patterns are case-sensitive and require literal path separators (/ cannot be matched by *).
     /// Use ** to match across directory boundaries.
@@ -39,6 +39,7 @@ pub struct IncludeConfig {
     #[serde(rename = "match")]
     pub matches: Vec<String>,
 
+    /// Whether to generate Java bindings
     #[serde(default)]
     pub bind: bool,
 
@@ -49,6 +50,7 @@ pub struct IncludeConfig {
     #[serde(default)]
     pub bind_private_fields: bool,
 
+    /// Whether to generate Java proxies. Setting to 'proxy = true' will force 'bind = true'
     #[serde(default)]
     pub proxy: bool,
 }
@@ -329,7 +331,7 @@ impl SourceConfig {
 #[derive(Deserialize, Debug)]
 pub struct Config {
     /// Configuration for binding generation sources
-    #[serde(rename = "source")]
+    #[serde(rename = "sources")]
     pub src: SourceConfig,
 
     /// Optional configuration for Java proxy generation
@@ -344,16 +346,6 @@ pub struct Config {
     /// List of configurations for what classes to bind/proxy
     #[serde(rename = "include")]
     pub rules: Vec<IncludeConfig>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ClassConfig<'a> {
-    pub bind: bool,
-    pub bind_private_classes: bool,
-    pub bind_private_methods: bool,
-    pub bind_private_fields: bool,
-    pub proxy: bool,
-    pub doc_pattern: Option<&'a DocConfig>,
 }
 
 impl Config {
@@ -390,7 +382,7 @@ impl Config {
             }
         }
 
-        dbg!(&config);
+        // dbg!(&config);
         Ok(config)
     }
 
@@ -490,6 +482,16 @@ impl Config {
 
         res
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassConfig<'a> {
+    pub bind: bool,
+    pub bind_private_classes: bool,
+    pub bind_private_methods: bool,
+    pub bind_private_fields: bool,
+    pub proxy: bool,
+    pub doc_pattern: Option<&'a DocConfig>,
 }
 
 fn resolve_file(path: &Path, dir: &Path) -> io::Result<PathBuf> {

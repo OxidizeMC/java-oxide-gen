@@ -59,19 +59,33 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 }
+
+#[derive(Subcommand, Debug)]
+pub enum Command {
+    /// Generate Java Bindings
+    Generate(GenerateCmd),
+}
+
+#[derive(Parser, Debug)]
+pub struct GenerateCmd {
+    /// Sets a custom config file path
+    #[arg(short, long, required = false)]
+    pub config: Option<std::path::PathBuf>,
+}
+
 impl Cli {
     /// Prints the short version message
-    pub fn print_version() {
+    pub fn _print_version() {
         println!("{}", Self::command().render_version())
     }
 
     /// Prints the long version message
-    pub fn print_long_version() {
+    pub fn _print_long_version() {
         println!("{}", Self::command().render_long_version())
     }
 
     /// Prints the help message
-    pub fn print_help() {
+    pub fn _print_help() {
         println!("{}", Self::command().render_help())
     }
 
@@ -119,17 +133,4 @@ impl Cli {
 
         println!("{}", info_text);
     }
-}
-
-#[derive(Subcommand, Debug)]
-pub enum Command {
-    /// Generate Java Bindings
-    Generate(GenerateCmd),
-}
-
-#[derive(Parser, Debug)]
-pub struct GenerateCmd {
-    /// Sets a custom config file path
-    #[arg(short, long, required = false)]
-    pub config: Option<std::path::PathBuf>
 }

@@ -38,7 +38,7 @@ fn init_logger(verbose_level: u8) {
             move |buf: &mut env_logger::fmt::Formatter,
                   record: &Record<'_>|
                   -> Result<(), std::io::Error> {
-                let target: String = {
+                let _target: String = {
                     let mut r: String = record.target().to_string();
                     let i: usize = r
                         .char_indices()

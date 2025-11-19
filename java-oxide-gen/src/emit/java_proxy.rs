@@ -4,7 +4,10 @@ use cafebabe::{
     MethodInfo,
     descriptors::{FieldDescriptor, FieldType, ReturnDescriptor},
 };
-use std::{fmt::Write, path::{Path, PathBuf}};
+use std::{
+    fmt::Write,
+    path::{Path, PathBuf},
+};
 
 impl Class {
     pub fn write_java_proxy(&self, context: &Context) -> anyhow::Result<String> {
@@ -191,7 +194,10 @@ pub fn write_java_proxy_files(context: &Context, output_dir: &Path) -> anyhow::R
     Ok(())
 }
 
-fn generate_java_proxy_files(context: &Context, output_dir: &Path) -> anyhow::Result<Vec<(PathBuf, String)>> {
+fn generate_java_proxy_files(
+    context: &Context,
+    output_dir: &Path,
+) -> anyhow::Result<Vec<(PathBuf, String)>> {
     let mut generated_code: Vec<(PathBuf, String)> = Vec::new();
 
     for (_, class) in context.all_classes.iter() {
@@ -206,7 +212,10 @@ fn generate_java_proxy_files(context: &Context, output_dir: &Path) -> anyhow::Re
         let output_path: PathBuf = output_dir.join(&relative_path);
 
         // Generate Java file
-        info!("Proxying {:?}", class.java.path().as_str().replace("/", "."));
+        info!(
+            "Proxying {:?}",
+            class.java.path().as_str().replace("/", ".")
+        );
         generated_code.push((output_path, class.write_java_proxy(context)?));
     }
 

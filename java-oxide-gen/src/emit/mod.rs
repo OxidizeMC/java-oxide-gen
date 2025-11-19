@@ -12,9 +12,7 @@ use self::{classes::Class, modules::Module};
 use crate::{config, io_data_err, parser_util};
 use proc_macro2::{Literal, TokenStream};
 use quote::{TokenStreamExt, format_ident, quote};
-use std::{
-    collections::HashMap, ffi::CString, io, rc::Rc, str::FromStr,
-};
+use std::{collections::HashMap, ffi::CString, io, rc::Rc, str::FromStr};
 
 pub struct Context<'a> {
     pub config: &'a config::Config,
