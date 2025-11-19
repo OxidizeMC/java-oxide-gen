@@ -69,16 +69,26 @@ fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::E
         "jar" => {
             let mut jar: ZipArchive<BufReader<File>> =
                 ZipArchive::new(BufReader::new(File::open(path)?))?;
-            let n: usize = jar.len();
-            debug!("Adding {} classes from JAR...", n);
-
-            for i in 0..n {
-                let mut file: ZipFile<'_, BufReader<File>> = jar.by_index(i)?;
-                if !file.name().ends_with(".class") {
+            let mut classfiles: Vec<String> = Vec::new();
+            for file in jar.file_names() {
+                if !file.ends_with(".class") {
                     continue;
                 }
-                // trace!("    Reading {:3}/{}: {:?}...", i, n, pretty_path!(file.enclosed_name().unwrap()));
+                classfiles.push(file.to_owned());
+            }
+            let num_files: usize = classfiles.len();
 
+            debug!("Adding {} classes from JAR...", num_files);
+
+            for (_i, file) in classfiles.iter().enumerate() {
+                let mut file: ZipFile<'_, BufReader<File>> = jar.by_name(file)?;
+                // trace!(
+                //     "    Reading {:width$}/{}: {:?}...",
+                //     i + 1,
+                //     num_files,
+                //     pretty_path!(file.enclosed_name().unwrap()),
+                //     width = num_files.checked_ilog10().unwrap_or(0) as usize + 1
+                // );
                 let mut buf: Vec<u8> = Vec::new();
                 file.read_to_end(&mut buf)?;
                 let class: JavaClass = JavaClass::read(buf)?;
