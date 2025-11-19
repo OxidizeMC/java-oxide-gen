@@ -1,6 +1,6 @@
 @echo off
 
-cargo build
+cargo build -p java-oxide-gen
 pushd gen-test
 set "RUST_BACKTRACE=1"
 ..\target\debug\java-oxide-gen.exe -vv generate

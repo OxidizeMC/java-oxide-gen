@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use crate::{pretty_path, prelude::*};
+use soft_canonicalize::soft_canonicalize;
 
 fn default_proxy_package() -> String {
     "java_oxide.proxy".to_string()
@@ -367,12 +368,12 @@ impl Config {
         };
         config.check();
 
-        config.src.output = resolve_file(&config.src.output, dir);
+        config.src.output = resolve_file(&config.src.output, dir)?;
         if let Some(output) = &mut config.proxy.output {
-            *output = resolve_file(output, dir);
+            *output = resolve_file(output, dir)?;
         }
         for f in &mut config.src.inputs {
-            *f = resolve_file(f, dir)
+            *f = resolve_file(f, dir)?
         }
 
         config.proxy.package = config.proxy.package.replace(".", "/");
@@ -397,7 +398,7 @@ impl Config {
     /// root of the filesystem and cannot continue.
     #[allow(dead_code)]
     pub fn from_current_directory() -> io::Result<Self> {
-        let current_dir: PathBuf = std::env::current_dir()?.canonicalize()?;
+        let current_dir: PathBuf = soft_canonicalize(std::env::current_dir()?)?;
         let mut path: PathBuf = current_dir.to_owned();
 
         loop {
@@ -422,7 +423,7 @@ impl Config {
     /// root of the filesystem and cannot continue.
     pub fn from_file(path: &Path) -> io::Result<Self> {
         let current_dir: PathBuf = std::env::current_dir()?;
-        let path: PathBuf = path.canonicalize().unwrap();
+        let path: PathBuf = soft_canonicalize(path)?;
         let mut file: File = File::open(&path)?;
         let config_dir: &Path = path.parent().unwrap_or(current_dir.as_path());
         Self::read(&mut file, config_dir)
@@ -491,14 +492,14 @@ impl Config {
     }
 }
 
-fn resolve_file(path: &Path, dir: &Path) -> PathBuf {
+fn resolve_file(path: &Path, dir: &Path) -> io::Result<PathBuf> {
     let path: PathBuf = path.into();
     if path.is_relative() {
         let p: PathBuf = dir.join(&path);
         trace!("Resolving path (relative)  {:?}  -->  {:?}", &path, &p);
-        p
+        soft_canonicalize(p)
     } else {
         trace!("Reasolving path (absolute)  {:?}", &path);
-        path
+        soft_canonicalize(path)
     }
 }
