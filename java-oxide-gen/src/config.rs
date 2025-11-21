@@ -366,17 +366,7 @@ impl Config {
         if let Some(output) = &mut config.proxy.output {
             *output = resolve_file(output, dir)?;
         }
-        let mut new_inputs: Vec<PathBuf> = Vec::new();
-        for p in &mut config.src.inputs {
-            *p = resolve_file(p, dir)?;
-            let p_str: String = p.to_string_lossy().to_string();
-            if glob::Pattern::new(&p_str.as_str()).is_ok() && p_str.contains("*") {
-                debug!("{:?} is glob valid", pretty_path!(p));
-                // TODO: Implement glob path matching
-                new_inputs.push(PathBuf::new());
-            }
-        }
-        config.src.inputs.extend(new_inputs);
+        config.src.inputs = expand_inputs(&config.src.inputs, dir)?;
 
         config.proxy.package = config.proxy.package.replace(".", "/");
         if let Some(docs) = &mut config.docs {
@@ -474,39 +464,31 @@ impl Config {
 
         for rule in &self.rules {
             if rule.matches_class(class) {
-                if temp_config.bind.is_none() {
-                    temp_config.bind = rule.bind;
-                } else if temp_config.bind == Some(true) && rule.bind.is_some() {
+                // Second terms have an implicit `&& temp_config.XXXX.is_some()`
+
+                if temp_config.bind.is_none() || temp_config.bind == Some(true) {
                     temp_config.bind = rule.bind;
                 }
 
-                if temp_config.bind_private_classes.is_none() {
-                    temp_config.bind_private_classes = rule.bind_private_classes;
-                } else if temp_config.bind_private_classes == Some(true)
-                    && rule.bind_private_classes.is_some()
+                if temp_config.bind_private_classes.is_none()
+                    || temp_config.bind_private_classes == Some(true)
                 {
                     temp_config.bind_private_classes = rule.bind_private_classes;
                 }
 
-                if temp_config.bind_private_methods.is_none() {
-                    temp_config.bind_private_methods = rule.bind_private_methods;
-                } else if temp_config.bind_private_methods == Some(true)
-                    && rule.bind_private_methods.is_some()
+                if temp_config.bind_private_methods.is_none()
+                    || temp_config.bind_private_methods == Some(true)
                 {
                     temp_config.bind_private_methods = rule.bind_private_methods;
                 }
 
-                if temp_config.bind_private_fields.is_none() {
-                    temp_config.bind_private_fields = rule.bind_private_fields;
-                } else if temp_config.bind_private_fields == Some(true)
-                    && rule.bind_private_fields.is_some()
+                if temp_config.bind_private_fields.is_none()
+                    || temp_config.bind_private_fields == Some(true)
                 {
                     temp_config.bind_private_fields = rule.bind_private_fields;
                 }
 
-                if temp_config.proxy.is_none() {
-                    temp_config.proxy = rule.proxy;
-                } else if temp_config.proxy == Some(true) && rule.proxy.is_some() {
+                if temp_config.proxy.is_none() || temp_config.proxy == Some(true) {
                     temp_config.proxy = rule.proxy;
                 }
             }
@@ -572,4 +554,67 @@ fn resolve_file(path: &Path, dir: &Path) -> io::Result<PathBuf> {
         trace!("Reasolving path (absolute)  {:?}", &path);
         soft_canonicalize(path)
     }
+}
+
+/// Expand a mix of glob patterns and plain paths provided in `source.inputs`.
+///
+/// For each entry in `inputs`:
+/// - If it contains glob characters (`*`, `?`, `[`), the pattern is expanded
+///   relative to `dir` (if the pattern is relative) using `glob::glob` and
+///   each matched entry is canonicalized when possible.
+/// - Otherwise the path is resolved (and canonicalized) via `resolve_file`.
+fn expand_inputs(inputs: &[PathBuf], dir: &Path) -> io::Result<Vec<PathBuf>> {
+    let mut expanded_inputs: Vec<PathBuf> = Vec::new();
+
+    for orig in inputs {
+        let orig_str: std::borrow::Cow<'_, str> = orig.to_string_lossy();
+        let contains_glob: bool =
+            orig_str.contains('*') || orig_str.contains('?') || orig_str.contains('[');
+
+        if contains_glob {
+            let pattern_path: PathBuf = if orig.is_relative() {
+                dir.join(orig)
+            } else {
+                orig.clone()
+            };
+            let pattern_str: String = pretty_path!(pattern_path);
+            debug!("Expanding glob pattern: {}", pattern_str);
+
+            match glob::glob(&pattern_str) {
+                Ok(paths) => {
+                    let mut matched_any = false;
+                    for entry in paths {
+                        match entry {
+                            Ok(path) => {
+                                matched_any = true;
+                                match soft_canonicalize(&path) {
+                                    Ok(canon) => {
+                                        debug!("Matched glob -> {:?}", pretty_path!(&canon));
+                                        expanded_inputs.push(canon);
+                                    }
+                                    Err(_) => error!(
+                                        "Failed to find file when expanding glob: {:?}",
+                                        pretty_path!(&path)
+                                    ),
+                                }
+                            }
+                            Err(e) => {
+                                warn!("Glob iteration error for pattern {:?}: {}", pattern_str, e)
+                            }
+                        }
+                    }
+                    if !matched_any {
+                        warn!("Glob pattern {:?} did not match any files", pattern_str);
+                    }
+                }
+                Err(e) => warn!("Invalid glob pattern {:?}: {}", pattern_str, e),
+            }
+        } else {
+            // Not a glob - resolve normally against the config dir
+            let resolved: PathBuf = resolve_file(orig, dir)?;
+            expanded_inputs.push(resolved);
+        }
+    }
+
+    Ok(expanded_inputs)
 }

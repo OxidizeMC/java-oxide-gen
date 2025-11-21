@@ -36,15 +36,18 @@ pub fn run(config: impl Into<Config>) {
     let mut out: Vec<u8> = Vec::with_capacity(4096);
     context.write(&mut out).unwrap();
     info!("Writing bindings...");
-    match util::write_generated(&context, &config.src.output, &out[..]) {
+    match util::write_generated(&config.src.output, &out[..]) {
         Ok(_) => {}
-        Err(e) => panic!("{}", e),
+        Err(e) => error!("ERROR WHILE WRITING BINDINGS:\n{}", e),
     };
 
     // Generate Java proxy files if proxy_output is specified
     // dbg!(&config.proxy.output);
     if let Some(output) = &config.proxy.output {
-        emit::java_proxy::write_java_proxy_files(&context, output).unwrap();
+        match emit::java_proxy::write_java_proxy_files(&context, output) {
+            Ok(_) => {}
+            Err(e) => error!("ERROR WHILE WRITING PROXIES:\n{}", e),
+        };
     }
 }
 
@@ -80,6 +83,7 @@ fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::E
 
             debug!("Adding {} classes from JAR...", num_files);
 
+            #[allow(clippy::unused_enumerate_index)]
             for (_i, file) in classfiles.iter().enumerate() {
                 let mut file: ZipFile<'_, BufReader<File>> = jar.by_name(file)?;
                 // trace!(

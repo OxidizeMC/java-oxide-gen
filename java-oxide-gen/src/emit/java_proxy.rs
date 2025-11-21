@@ -186,10 +186,10 @@ fn java_type_name(desc: &FieldDescriptor) -> anyhow::Result<String> {
 
 pub fn write_java_proxy_files(context: &Context, output_dir: &Path) -> anyhow::Result<()> {
     info!("Generating proxies...");
-    let generated_code: Vec<(PathBuf, String)> = generate_java_proxy_files(&context, &output_dir)?;
+    let generated_code: Vec<(PathBuf, String)> = generate_java_proxy_files(context, output_dir)?;
     info!("Writing proxies...");
     for (output_path, java_code) in generated_code {
-        util::write_generated(context, &output_path, java_code.as_bytes())?;
+        util::write_generated(&output_path, java_code.as_bytes())?;
     }
     Ok(())
 }

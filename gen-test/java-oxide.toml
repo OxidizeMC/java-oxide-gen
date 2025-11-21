@@ -1,7 +1,6 @@
 [sources]
 inputs = [
     "./jars/java-21-base.jar",
-    # "./jars/fabric-api-0.138.3+1.21.10.jar"
     "./jars/fabric-api-0.138.3+1.21.10/*.jar"
 ]
 output = "./src/lib.rs"
