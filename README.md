@@ -36,8 +36,8 @@ A list of differences from `jni-bindgen` are listed in [`java-spaghetti`'s READM
 - [X] Allow Glob Paths as inputs
 - [ ] Fix code gen issues
   - [X] Use absolute paths (`crate::...`)
-  - [ ] "Correctly" format generated code
   - [ ] Use SOME macros to improve readability
+  - [ ] "Correctly" format generated code
 - [ ] Use `ristretto_classfile` instead of `cafebabe`
 - [ ] Implement stub generation
 - [ ] Actually do documentation

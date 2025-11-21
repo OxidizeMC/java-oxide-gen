@@ -10,7 +10,7 @@ mod modules;
 
 use self::{classes::Class, modules::Module};
 use crate::{config, io_data_err, parser_util};
-use proc_macro2::{Literal, Ident, TokenStream};
+use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{TokenStreamExt, format_ident, quote};
 use std::{collections::HashMap, ffi::CString, io, rc::Rc, str::FromStr};
 
@@ -42,38 +42,6 @@ impl<'a> Context<'a> {
         let jclass_mod: String = Class::mod_for(java_class)?;
         let jclass_name: String = Class::name_for(java_class)?;
         let jclass_path: String = format!("{jclass_mod}::{jclass_name}");
-
-        // // Calculate relative path from B to A.
-        // let curr_mod_comps: Vec<&str> = curr_mod.split("::").collect();
-        // let jclass_path_comps: Vec<&str> = jclass_path.split("::").collect();
-        // let mut jclass_unique_path: &[&str] = &jclass_path_comps[..jclass_path_comps.len() - 1];
-        // let mut curr_mod_unique_path: &[&str] = &curr_mod_comps[..];
-        // while !jclass_unique_path.is_empty()
-        //     && !curr_mod_unique_path.is_empty()
-        //     && jclass_unique_path[0] == curr_mod_unique_path[0]
-        // {
-        //     jclass_unique_path = &jclass_unique_path[1..];
-        //     curr_mod_unique_path = &curr_mod_unique_path[1..];
-        // }
-
-        // let mut result: TokenStream = TokenStream::new();
-
-        // // for each item left in B, append a `super`
-        // for _ in curr_mod_unique_path {
-        //     result.extend(quote!(super::));
-        // }
-
-        // // for each item in A, append it
-        // for ident in jclass_unique_path {
-        //     let ident: Ident = format_ident!("{}", ident);
-        //     result.extend(quote!(#ident::));
-        // }
-
-        // let ident: Ident =
-        //     format_ident!("{}", jclass_path_comps[jclass_path_comps.len() - 1]);
-        // result.append(ident);
-
-
         let mut result: TokenStream = TokenStream::new();
 
         if jclass_mod == curr_mod {
@@ -92,10 +60,11 @@ impl<'a> Context<'a> {
         Ok(result)
     }
 
-    pub fn add_class(&mut self, class: parser_util::JavaClass) -> Result<(), anyhow::Error> {
-        let class_config: config::ClassConfig<'_> = self.config.resolve_class(class.path().as_str());
+    pub fn add_class(&mut self, class: parser_util::JavaClass) -> Result<bool, anyhow::Error> {
+        let class_config: config::ClassConfig<'_> =
+            self.config.resolve_class(class.path().as_str());
         if !class_config.bind {
-            return Ok(());
+            return Ok(false);
         }
 
         let java_path: String = class.path().as_str().to_string();
@@ -113,9 +82,11 @@ impl<'a> Context<'a> {
                 &class.rust.struct_name
             )?;
         }
-        rust_mod.classes.insert(class.rust.struct_name.clone(), class);
+        rust_mod
+            .classes
+            .insert(class.rust.struct_name.clone(), class);
 
-        Ok(())
+        Ok(true)
     }
 
     pub fn write(&self, out: &mut impl io::Write) -> anyhow::Result<()> {

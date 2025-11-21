@@ -277,6 +277,7 @@ impl<'env> Env<'env> {
             return "??? (couldn't get class getName method)".to_string();
         }
 
+        // Ignore error here
         let string = ((**self.env).v1_2.CallObjectMethod)(self.env, class, method);
         if string.is_null() {
             return "??? (getName returned null string)".to_string();

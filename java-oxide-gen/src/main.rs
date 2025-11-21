@@ -65,9 +65,15 @@ fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::E
 
     match ext.to_string_lossy().to_ascii_lowercase().as_str() {
         "class" => {
-            debug!("Adding class directly...");
+            debug!("Reading class directly...");
             let class: JavaClass = JavaClass::read(std::fs::read(path)?)?;
-            context.add_class(class)?;
+            let class_path: String = class.path().as_str().to_string();
+            if !context.add_class(class)? {
+                warn!(
+                    "Classfile ({:?}) will not be bound because it is not included in the config file!",
+                    class_path
+                )
+            }
         }
         "jar" => {
             let mut jar: ZipArchive<BufReader<File>> =
@@ -80,8 +86,9 @@ fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::E
                 classfiles.push(file.to_owned());
             }
             let num_files: usize = classfiles.len();
+            let mut num_bound: usize = 0;
 
-            debug!("Adding {} classes from JAR...", num_files);
+            debug!("Reading {} classes from JAR...", num_files);
 
             #[allow(clippy::unused_enumerate_index)]
             for (_i, file) in classfiles.iter().enumerate() {
@@ -96,7 +103,17 @@ fn gather_file(context: &mut emit::Context, path: &Path) -> Result<(), anyhow::E
                 let mut buf: Vec<u8> = Vec::new();
                 file.read_to_end(&mut buf)?;
                 let class: JavaClass = JavaClass::read(buf)?;
-                context.add_class(class)?;
+                if context.add_class(class)? {
+                    num_bound += 1;
+                }
+            }
+
+            if num_bound == 0 {
+                warn!(
+                    "No classes from the JAR were bound because none of them were included in the config file!"
+                );
+            } else {
+                debug!("{} classes added from JAR", num_bound);
             }
         }
         unknown => {

@@ -578,7 +578,7 @@ fn expand_inputs(inputs: &[PathBuf], dir: &Path) -> io::Result<Vec<PathBuf>> {
                 orig.clone()
             };
             let pattern_str: String = pretty_path!(pattern_path);
-            debug!("Expanding glob pattern: {}", pattern_str);
+            debug!("Expanding glob pattern: {:?}", pattern_str);
 
             match glob::glob(&pattern_str) {
                 Ok(paths) => {
