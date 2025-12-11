@@ -9,6 +9,11 @@ keywords = ["jvm", "jni", "bindgen"]
 categories = ["development-tools::ffi"]
 license = "MIT"
 readme = "README.md"
+exclude = [
+    "grab-missing-classes.py",
+    "test.bat",
+    "test.sh"
+]
 
 [dependencies]
 cafebabe = "0.9.0"
