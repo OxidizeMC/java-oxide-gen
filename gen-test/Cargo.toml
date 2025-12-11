@@ -1,8 +1,10 @@
 [package]
 name = "gen-test"
 edition = "2024"
+publish = false
 
 [dependencies]
-java-oxide = { path = "../java-oxide" }
+# java-oxide = { path = "../../java-oxide" }
+java-oxide = { git = "https://github.com/OxidizeMC/java-oxide" }
 
 [workspace]
